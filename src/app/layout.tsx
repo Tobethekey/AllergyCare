@@ -5,7 +5,7 @@ import { SidebarProvider, Sidebar, SidebarInset, SidebarContent, SidebarFooter }
 import NavItemsClient from '@/components/navigation/NavItemsClient'; // Client component to get pathname
 
 export const metadata: Metadata = {
-  title: 'AllergyLife',
+  title: 'AllergyCare',
   description: 'Einfache App zur Dokumentation von Nahrungsaufnahme und allergischen Reaktionen.',
 };
 
@@ -29,7 +29,7 @@ export default function RootLayout({
               <NavItemsClient />
             </SidebarContent>
             <SidebarFooter className="p-2 text-xs text-sidebar-foreground/70">
-              AllergyLife &copy; {new Date().getFullYear()}
+              AllergyCare &copy; {new Date().getFullYear()}
             </SidebarFooter>
           </Sidebar>
           <SidebarInset>

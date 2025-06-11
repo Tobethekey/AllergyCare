@@ -8,7 +8,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Willkommen bei AllergyLife"
+        title="Willkommen bei AllergyCare"
         description="Ihr Begleiter zur einfachen Dokumentation von Ernährung und Symptomen."
       />
 
@@ -71,11 +71,11 @@ export default function DashboardPage() {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-primary">Über AllergyLife</CardTitle>
+          <CardTitle className="font-headline text-primary">Über AllergyCare</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-foreground">
           <p>
-            AllergyLife hilft Ihnen, potenzielle Nahrungsmittelunverträglichkeiten oder Allergieauslöser zu identifizieren, 
+            AllergyCare hilft Ihnen, potenzielle Nahrungsmittelunverträglichkeiten oder Allergieauslöser zu identifizieren, 
             indem Sie Ihre Ernährung und auftretende Symptome lückenlos dokumentieren.
           </p>
           <p>

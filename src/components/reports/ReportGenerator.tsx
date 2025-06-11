@@ -123,7 +123,7 @@ export function ReportGenerator() {
 
       <Card className="shadow-lg print-container" id="report-preview-area">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl text-primary text-center">Gesundheitsbericht AllergyLife</CardTitle>
+          <CardTitle className="font-headline text-2xl text-primary text-center">Gesundheitsbericht AllergyCare</CardTitle>
           <CardDescription className="text-center">
             Zeitraum: {startDate ? format(parseISO(startDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'} - {endDate ? format(parseISO(endDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'}
             {searchTerm && <span className="block">Suchbegriff: {searchTerm}</span>}
