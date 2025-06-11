@@ -1,0 +1,70 @@
+import Link from 'next/link';
+import {
+  LayoutDashboard,
+  Apple,
+  ClipboardPlus,
+  CalendarDays,
+  FileText,
+  User,
+  PanelLeft,
+} from 'lucide-react';
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarTrigger,
+  SidebarHeader,
+} from '@/components/ui/sidebar';
+import AppLogo from '@/components/AppLogo';
+import type React from 'react';
+
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  tooltip: string;
+}
+
+const navItems: NavItem[] = [
+  { href: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard' },
+  { href: '/food-log', icon: Apple, label: 'Essen Doku', tooltip: 'Nahrungsmittel dokumentieren' },
+  { href: '/symptom-log', icon: ClipboardPlus, label: 'Symptom Doku', tooltip: 'Symptome erfassen' },
+  { href: '/timeline', icon: CalendarDays, label: 'Zeitstrahl', tooltip: 'Zeitliche Übersicht' },
+  { href: '/reports', icon: FileText, label: 'Berichte', tooltip: 'Berichte erstellen/exportieren' },
+  { href: '/profile', icon: User, label: 'Profil', tooltip: 'Benutzerprofil' },
+];
+
+interface NavItemsProps {
+  pathname: string;
+}
+
+const NavItems: React.FC<NavItemsProps> = ({ pathname }) => {
+  return (
+    <>
+      <SidebarHeader className="flex items-center justify-between">
+        <AppLogo />
+        <SidebarTrigger className="md:hidden">
+           <PanelLeft />
+        </SidebarTrigger>
+      </SidebarHeader>
+      <SidebarMenu>
+        {navItems.map((item) => (
+          <SidebarMenuItem key={item.href}>
+            <Link href={item.href} passHref legacyBehavior>
+              <SidebarMenuButton
+                isActive={pathname === item.href}
+                tooltip={item.tooltip}
+                aria-label={item.label}
+              >
+                <item.icon />
+                <span>{item.label}</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </>
+  );
+};
+
+export default NavItems;
