@@ -137,10 +137,10 @@ export function ReportGenerator() {
 
       <div className="flex flex-wrap gap-4 justify-end">
         <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
-          <Printer className="mr-2 h-4 w-4" /> Als PDF Drucken
+          <Printer className="mr-2 h-4 w-4" /> Download als PDF
         </Button>    
-        <Button onClick={() => exportDataToCsv()} variant="outline" className="text-primary border-primary hover:bg-primary/10" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
-          <FileDown className="mr-2 h-4 w-4" /> Als CSV Exportieren
+        <Button onClick={() => exportDataToCsv()} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
+          <FileDown className="mr-2 h-4 w-4" /> Download als CSV
         </Button>      
       </div>
 
@@ -229,13 +229,24 @@ export function ReportGenerator() {
             left: 0;
             top: 0;
             width: 100%;
+            margin: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
           }
-          .no-print {
+          .no-print { /* This class can be added to elements that should never print */
             display: none !important;
           }
-          /* Ensure cards don't break across pages if possible */
           .break-inside-avoid-page {
              break-inside: avoid-page;
+          }
+          /* Remove headers and footers from the browser's print dialog if possible */
+          @page {
+            size: auto;
+            margin: 0mm; 
+          }
+          body {
+            margin: 0 !important;
           }
         }
         .report-preview h4 { font-family: 'Belleza', sans-serif; }
@@ -244,3 +255,4 @@ export function ReportGenerator() {
     </div>
   );
 }
+
