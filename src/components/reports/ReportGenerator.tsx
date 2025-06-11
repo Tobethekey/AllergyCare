@@ -5,9 +5,9 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon } from 'lucide-react';
-import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById } from '@/lib/data-service';
-import type { FoodEntry, SymptomEntry } from '@/lib/types';
+import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon, Users, User as UserIcon } from 'lucide-react';
+import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById, getUserProfiles } from '@/lib/data-service';
+import type { FoodEntry, SymptomEntry, UserProfile } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,6 +22,8 @@ type ReportItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'symp
 export function ReportGenerator() {
   const [allFoodEntries, setAllFoodEntries] = useState<FoodEntry[]>([]);
   const [allSymptomEntries, setAllSymptomEntries] = useState<SymptomEntry[]>([]);
+  const [allUserProfiles, setAllUserProfiles] = useState<UserProfile[]>([]);
+  const [userProfilesMap, setUserProfilesMap] = useState<Map<string, string>>(new Map());
   const [loadingInitialData, setLoadingInitialData] = useState(true);
   
   const [filteredItems, setFilteredItems] = useState<ReportItem[]>([]);
@@ -34,15 +36,18 @@ export function ReportGenerator() {
   useEffect(() => {
     const food = getFoodEntries();
     const symptoms = getSymptomEntries();
+    const profiles = getUserProfiles();
     setAllFoodEntries(food);
     setAllSymptomEntries(symptoms);
+    setAllUserProfiles(profiles);
+    setUserProfilesMap(new Map(profiles.map(p => [p.id, p.name])));
     setLoadingInitialData(false);
   }, []);
 
   useEffect(() => {
     filterAndSortData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFoodEntries, allSymptomEntries, startDate, endDate, searchTerm]);
+  }, [allFoodEntries, allSymptomEntries, startDate, endDate, searchTerm, allUserProfiles]);
 
   const filterAndSortData = () => {
     let items: ReportItem[] = [
@@ -59,7 +64,7 @@ export function ReportGenerator() {
     }
 
     if (endDate) {
-      const end = parseISO(endDate).getTime() + (24 * 60 * 60 * 1000 -1); // Include full end day
+      const end = parseISO(endDate).getTime() + (24 * 60 * 60 * 1000 -1); 
       items = items.filter(item => {
         const itemDate = parseISO(item.type === 'food' ? item.timestamp : item.startTime).getTime();
         return itemDate <= end;
@@ -70,10 +75,13 @@ export function ReportGenerator() {
       const lowerSearchTerm = searchTerm.toLowerCase();
       items = items.filter(item => {
         if (item.type === 'food') {
-          return item.foodItems.toLowerCase().includes(lowerSearchTerm);
-        } else {
+          const profileNames = item.profileIds.map(id => userProfilesMap.get(id)?.toLowerCase() || '').join(' ');
+          return item.foodItems.toLowerCase().includes(lowerSearchTerm) || profileNames.includes(lowerSearchTerm);
+        } else { // Symptom
+          const profileName = userProfilesMap.get(item.profileId)?.toLowerCase() || '';
           let match = item.symptom.toLowerCase().includes(lowerSearchTerm) || 
-                 item.category.toLowerCase().includes(lowerSearchTerm);
+                 item.category.toLowerCase().includes(lowerSearchTerm) ||
+                 profileName.includes(lowerSearchTerm);
           if (item.linkedFoodEntryId) {
             const linkedFood = getFoodEntryById(item.linkedFoodEntryId);
             if (linkedFood && linkedFood.foodItems.toLowerCase().includes(lowerSearchTerm)) {
@@ -88,7 +96,7 @@ export function ReportGenerator() {
     items.sort((a, b) => {
       const dateA = new Date(a.type === 'food' ? a.timestamp : a.startTime).getTime();
       const dateB = new Date(b.type === 'food' ? b.timestamp : b.startTime).getTime();
-      return dateA - dateB; // Sort ascending for reports
+      return dateA - dateB; 
     });
     
     setFilteredItems(items);
@@ -102,7 +110,6 @@ export function ReportGenerator() {
 
     const reportElement = reportPreviewRef.current;
     
-    // Store original styles to restore them later
     const originalStyles = {
         width: reportElement.style.width,
         height: reportElement.style.height,
@@ -113,36 +120,29 @@ export function ReportGenerator() {
         top: reportElement.style.top,
     };
     
-    // Prepare element for canvas rendering to mimic print styles
-    // This helps html2canvas capture a layout more suitable for PDF
-    reportElement.style.width = '210mm'; // A4 width
-    reportElement.style.height = 'auto'; // Auto height based on content
-    reportElement.style.padding = '15mm'; // Simulate print margins
-    reportElement.style.overflow = 'visible'; // Ensure all content is captured
-    // Temporarily move off-screen to avoid layout shifts if styles affect visible page
+    reportElement.style.width = '210mm'; 
+    reportElement.style.height = 'auto'; 
+    reportElement.style.padding = '15mm'; 
+    reportElement.style.overflow = 'visible'; 
     reportElement.style.position = 'absolute';
     reportElement.style.left = '-9999px';
     reportElement.style.top = '-9999px';
 
     const canvas = await html2canvas(reportElement, {
-      scale: 2, // Higher scale for better resolution
+      scale: 2, 
       useCORS: true,
-      logging: false, // Set to true for debugging html2canvas
+      logging: false, 
       onclone: (documentClone) => {
-        // Apply specific styles to the cloned document for rendering
-        // This is where styles normally handled by @media print can be enforced
         const clonedReportElement = documentClone.getElementById('report-preview-area');
         if (clonedReportElement) {
             clonedReportElement.style.background = 'white';
             clonedReportElement.style.color = 'black';
             clonedReportElement.style.fontFamily = 'Arial, sans-serif';
 
-            // Ensure all children also get basic print-friendly styles
             const allElements = clonedReportElement.querySelectorAll<HTMLElement>('*');
             allElements.forEach(el => {
                 el.style.color = 'black';
                 el.style.fontFamily = 'Arial, sans-serif';
-                // Reset any theme-specific colors explicitly
                 if (el.classList.contains('text-primary')) el.style.color = 'black';
                 if (el.classList.contains('text-muted-foreground')) el.style.color = 'black';
                 if (el.classList.contains('font-headline')) el.style.fontFamily = 'Arial, sans-serif';
@@ -153,7 +153,6 @@ export function ReportGenerator() {
                 img.style.maxHeight = '100px';
                 img.style.border = '1px solid #ccc';
             });
-            // Make sure report items are not broken across pages if possible (jsPDF handles paging)
             clonedReportElement.querySelectorAll<HTMLElement>('.report-item').forEach(item => {
                 item.style.breakInside = 'avoid'; 
             });
@@ -161,7 +160,6 @@ export function ReportGenerator() {
       }
     });
     
-    // Restore original styles to the actual element
     reportElement.style.width = originalStyles.width;
     reportElement.style.height = originalStyles.height;
     reportElement.style.padding = originalStyles.padding;
@@ -180,7 +178,6 @@ export function ReportGenerator() {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    // Calculate image dimensions to fit A4 page width, maintaining aspect ratio
     const imgProps = pdf.getImageProperties(imgData);
     const imgWidth = pdfWidth;
     const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
@@ -188,13 +185,11 @@ export function ReportGenerator() {
     let currentPosition = 0;
     let remainingImgHeight = imgHeight;
 
-    // Add first page
     pdf.addImage(imgData, 'PNG', 0, currentPosition, imgWidth, imgHeight);
     remainingImgHeight -= pdfHeight;
 
-    // Add more pages if content overflows
     while (remainingImgHeight > 0) {
-      currentPosition -= pdfHeight; // Move the image viewport up for the next page
+      currentPosition -= pdfHeight; 
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, currentPosition, imgWidth, imgHeight);
       remainingImgHeight -= pdfHeight;
@@ -220,7 +215,7 @@ export function ReportGenerator() {
                 <div><Label htmlFor="startDate">Startdatum</Label><Skeleton className="h-10 w-full" /></div>
                 <div><Label htmlFor="endDate">Enddatum</Label><Skeleton className="h-10 w-full" /></div>
               </div>
-              <div><Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom)</Label><Skeleton className="h-10 w-full" /></div>
+              <div><Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/Profil)</Label><Skeleton className="h-10 w-full" /></div>
             </>
           ) : (
             <>
@@ -235,8 +230,8 @@ export function ReportGenerator() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/verkn. Mahlzeit)</Label>
-                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag, verknüpfte Pizza" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/Profil/verkn. Mahlzeit)</Label>
+                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag, Max, verknüpfte Pizza" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
             </>
           )}
@@ -270,8 +265,8 @@ export function ReportGenerator() {
           ) : filteredItems.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground">
                 <AlertCircle className="mx-auto h-10 w-10 mb-2" />
-                {allFoodEntries.length === 0 && allSymptomEntries.length === 0 
-                  ? "Es sind noch keine Daten vorhanden. Bitte dokumentieren Sie zuerst Mahlzeiten oder Symptome."
+                {allFoodEntries.length === 0 && allSymptomEntries.length === 0 && allUserProfiles.length === 0
+                  ? "Es sind noch keine Daten vorhanden. Bitte dokumentieren Sie zuerst Mahlzeiten, Symptome oder legen Sie Profile an."
                   : "Keine Daten für die ausgewählten Filter gefunden."
                 }
             </div>
@@ -281,6 +276,9 @@ export function ReportGenerator() {
               if (item.type === 'symptom' && item.linkedFoodEntryId) {
                 linkedFoodDetails = getFoodEntryById(item.linkedFoodEntryId);
               }
+              const itemProfileNames = item.type === 'food' 
+                ? item.profileIds.map(id => userProfilesMap.get(id) || 'Unbekannt').join(', ')
+                : userProfilesMap.get(item.profileId) || 'Unbekannt';
 
               return (
                 <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page report-item">
@@ -288,6 +286,10 @@ export function ReportGenerator() {
                     {item.type === 'food' ? <Apple size={18} /> : <ClipboardPlus size={18} />}
                     {item.type === 'food' ? 'Mahlzeit' : 'Symptom'} - {format(parseISO(item.type === 'food' ? item.timestamp : item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr
                   </h4>
+                   <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                     {item.type === 'food' ? <Users className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
+                     {itemProfileNames}
+                   </p>
                   {item.type === 'food' ? (
                     <div className="text-sm mt-1">
                       <p><strong>Nahrungsmittel:</strong> {item.foodItems}</p>
@@ -348,7 +350,7 @@ export function ReportGenerator() {
             width: 100% !important;
             min-height: 100% !important;
             margin: 0 !important;
-            padding: 15mm !important; /* Page margins for printing */
+            padding: 15mm !important; 
             border: none !important;
             box-shadow: none !important;
             background: white !important;
@@ -359,24 +361,23 @@ export function ReportGenerator() {
           }
 
           #report-preview-area .report-item {
-            border: 1px solid #ccc !important; /* Ensure borders are visible */
-            page-break-inside: avoid; /* Use this instead of break-inside-avoid-page for broader compatibility */
+            border: 1px solid #ccc !important; 
+            page-break-inside: avoid; 
           }
           
           #report-preview-area .text-primary,
           #report-preview-area .text-muted-foreground,
           #report-preview-area .font-headline,
-          #report-preview-area .CardTitle, /* Target CardTitle specifically if needed */
-          #report-preview-area .CardDescription { /* Target CardDescription specifically */
+          #report-preview-area .CardTitle, 
+          #report-preview-area .CardDescription { 
              color: black !important;
-             font-family: Arial, sans-serif !important; /* Use print-friendly fonts */
+             font-family: Arial, sans-serif !important; 
           }
-          /* Ensure specific components reset their themed colors */
           #report-preview-area .CardHeader, #report-preview-area .CardContent {
             background: white !important;
           }
           
-          #report-preview-area h4 { /* Style headings for print */
+          #report-preview-area h4 { 
             font-family: Arial, sans-serif !important;
             font-size: 12pt !important;
             font-weight: bold !important;
@@ -389,7 +390,7 @@ export function ReportGenerator() {
 
 
           #report-preview-area img {
-            max-width: 100px !important; /* Control image size more strictly for print */
+            max-width: 100px !important; 
             max-height: 100px !important;
             height: auto !important;
             width: auto !important;
@@ -397,7 +398,7 @@ export function ReportGenerator() {
             display: block !important;
             margin-top: 8px !important;
             margin-bottom: 8px !important;
-            border: 1px solid #eee !important; /* Optional: border around images */
+            border: 1px solid #eee !important; 
           }
           
           .no-print {
@@ -409,9 +410,8 @@ export function ReportGenerator() {
             margin: 0; 
           }
         }
-        /* Non-print specific styles remain */
-        .report-preview h4 { font-family: 'Belleza', sans-serif; } /* For screen */
-        .report-preview p, .report-preview div { font-family: 'Alegreya', serif; } /* For screen */
+        .report-preview h4 { font-family: 'Belleza', sans-serif; } 
+        .report-preview p, .report-preview div { font-family: 'Alegreya', serif; } 
       `}</style>
     </div>
   );

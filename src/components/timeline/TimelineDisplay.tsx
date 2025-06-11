@@ -3,11 +3,11 @@
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { getFoodEntries, getSymptomEntries, deleteFoodEntry, deleteSymptomEntry, getFoodEntryById } from '@/lib/data-service';
-import type { FoodEntry, SymptomEntry } from '@/lib/types';
+import { getFoodEntries, getSymptomEntries, deleteFoodEntry, deleteSymptomEntry, getFoodEntryById, getUserProfiles, getUserProfileById } from '@/lib/data-service';
+import type { FoodEntry, SymptomEntry, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Apple, ClipboardPlus, Trash2, AlertCircle, LinkIcon, Edit } from 'lucide-react';
+import { Apple, ClipboardPlus, Trash2, AlertCircle, LinkIcon, Edit, Users, User as UserIcon } from 'lucide-react';
 import Image from 'next/image';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -28,7 +28,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose, // Keep DialogClose if you want an explicit close button inside the form
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FoodLogForm } from '@/components/forms/FoodLogForm';
@@ -41,12 +40,17 @@ export function TimelineDisplay() {
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const [userProfilesMap, setUserProfilesMap] = useState<Map<string, string>>(new Map());
 
   const [foodEntryToEdit, setFoodEntryToEdit] = useState<FoodEntry | null>(null);
   const [symptomEntryToEdit, setSymptomEntryToEdit] = useState<SymptomEntry | null>(null);
 
   const fetchData = () => {
     setIsLoading(true);
+    const profiles = getUserProfiles();
+    const profileMap = new Map(profiles.map(p => [p.id, p.name]));
+    setUserProfilesMap(profileMap);
+
     const foodItems = getFoodEntries().map(entry => ({ ...entry, type: 'food' as const }));
     const symptomItems = getSymptomEntries().map(entry => ({ ...entry, type: 'symptom' as const }));
     
@@ -54,7 +58,7 @@ export function TimelineDisplay() {
     allItems.sort((a, b) => {
       const dateA = new Date(a.type === 'food' ? a.timestamp : a.startTime).getTime();
       const dateB = new Date(b.type === 'food' ? b.timestamp : b.startTime).getTime();
-      return dateB - dateA; // Sort descending (newest first)
+      return dateB - dateA; 
     });
     setTimelineItems(allItems);
     setIsLoading(false);
@@ -70,7 +74,7 @@ export function TimelineDisplay() {
     } else {
       deleteSymptomEntry(id);
     }
-    fetchData(); // Refresh data
+    fetchData(); 
     toast({
       title: "Eintrag gelöscht",
       description: "Der Eintrag wurde erfolgreich entfernt.",
@@ -89,7 +93,6 @@ export function TimelineDisplay() {
     fetchData();
     setFoodEntryToEdit(null);
     setSymptomEntryToEdit(null);
-    // Toast for update is handled within the forms now
   };
 
 
@@ -123,6 +126,10 @@ export function TimelineDisplay() {
           linkedFood = getFoodEntryById(item.linkedFoodEntryId);
         }
 
+        const itemProfileNames = item.type === 'food' 
+          ? item.profileIds.map(id => userProfilesMap.get(id) || 'Unbekannt').join(', ')
+          : userProfilesMap.get(item.profileId) || 'Unbekannt';
+
         return (
           <Card key={item.id} className="shadow-md transition-all duration-300 ease-in-out hover:shadow-lg">
             <CardHeader className="flex flex-row justify-between items-start">
@@ -135,6 +142,10 @@ export function TimelineDisplay() {
                   {item.type === 'food' 
                     ? `Dokumentiert: ${format(parseISO(item.timestamp), "dd.MM.yyyy HH:mm", { locale: de })} Uhr`
                     : `Beginn: ${format(parseISO(item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr (Protokolliert: ${format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr)`}
+                </CardDescription>
+                <CardDescription className="text-xs mt-0.5 flex items-center gap-1">
+                  {item.type === 'food' ? <Users className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
+                  {itemProfileNames}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-1">
@@ -204,7 +215,6 @@ export function TimelineDisplay() {
         );
       })}
 
-      {/* Dialog for Editing Food Entry */}
       <Dialog open={!!foodEntryToEdit} onOpenChange={(isOpen) => !isOpen && setFoodEntryToEdit(null)}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
@@ -216,7 +226,6 @@ export function TimelineDisplay() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog for Editing Symptom Entry */}
       <Dialog open={!!symptomEntryToEdit} onOpenChange={(isOpen) => !isOpen && setSymptomEntryToEdit(null)}>
         <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>

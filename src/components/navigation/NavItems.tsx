@@ -2,17 +2,14 @@
 import Link from 'next/link';
 import {
   LayoutDashboard,
-  Apple,
-  ClipboardPlus,
-  CalendarDays,
-  FileText,
-  User,
-  HelpCircle, 
-  PanelLeft,
+  Users, // Added for Profiles
+  BookCopy,
+  ListPlus,
   History,
   DownloadCloud,
-  ListPlus,
-  BookCopy,
+  User, // Kept for AppSettings/Notes page
+  HelpCircle, 
+  PanelLeft,
 } from 'lucide-react';
 import {
   SidebarMenu,
@@ -33,11 +30,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard' },
+  { href: '/profiles', icon: Users, label: 'Profile', tooltip: 'Profile verwalten' }, // New
   { href: '/food-log', icon: BookCopy, label: 'Mahlzeiten-Doku', tooltip: 'Mahlzeiten dokumentieren' },
   { href: '/symptom-log', icon: ListPlus, label: 'Symptom-Doku', tooltip: 'Symptome erfassen' },
   { href: '/timeline', icon: History, label: 'Historie', tooltip: 'Zeitliche Übersicht' },
   { href: '/reports', icon: DownloadCloud, label: 'Download', tooltip: 'Berichte herunterladen/exportieren' },
-  { href: '/profile', icon: User, label: 'Profil', tooltip: 'Benutzerprofil' },
+  { href: '/profile', icon: User, label: 'Notizen', tooltip: 'Allgemeine Notizen & Einstellungen' }, // Label changed
   { href: '/help', icon: HelpCircle, label: 'Hilfe', tooltip: 'Hilfe & Informationen'},
 ];
 

@@ -17,23 +17,23 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HeartPulse, LinkIcon } from 'lucide-react';
-import { addSymptomEntry, getFoodEntries, updateSymptomEntry } from '@/lib/data-service';
-import type { FoodEntry, SymptomCategory, SymptomSeverity, SymptomEntry as SymptomEntryType } from '@/lib/types';
+import { HeartPulse, LinkIcon, User as UserIcon } from 'lucide-react';
+import { addSymptomEntry, getFoodEntries, updateSymptomEntry, getUserProfiles } from '@/lib/data-service';
+import type { FoodEntry, SymptomCategory, SymptomSeverity, SymptomEntry as SymptomEntryType, UserProfile } from '@/lib/types';
 import { symptomCategories, symptomSeverities } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 const getLocalDateTimeString = (isoDateString?: string) => {
   const date = isoDateString ? new Date(isoDateString) : new Date();
-  // Check if date is valid, if not, fallback to current date
   if (isNaN(date.getTime())) {
     const fallbackDate = new Date();
     const offset = fallbackDate.getTimezoneOffset() * 60000;
     const localDate = new Date(fallbackDate.getTime() - offset);
     return localDate.toISOString().substring(0, 16);
   }
-  const offset = date.getTimezoneOffset() * 60000; // Offset in milliseconds
+  const offset = date.getTimezoneOffset() * 60000; 
   const localDate = new Date(date.getTime() - offset);
   return localDate.toISOString().substring(0, 16);
 };
@@ -57,6 +57,7 @@ const symptomLogFormSchema = z.object({
     message: 'Bitte geben Sie die Dauer an (z.B. "2 Stunden", "30 Minuten", "anhaltend").',
   }),
   linkedFoodEntryId: z.string().optional(),
+  profileId: z.string({ required_error: 'Bitte wählen Sie ein Profil aus.'}).min(1, {message: 'Bitte wählen Sie ein Profil aus.'}),
 });
 
 type SymptomLogFormValues = z.infer<typeof symptomLogFormSchema>;
@@ -70,6 +71,15 @@ interface SymptomLogFormProps {
 export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProps) {
   const { toast } = useToast();
   const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    setAvailableProfiles(getUserProfiles());
+    const allFood = getFoodEntries();
+    const sortedFood = allFood.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    setRecentFoodEntries(sortedFood.slice(0, 15)); 
+  }, []);
+
 
   const getInitialDefaultValues = (): Partial<SymptomLogFormValues> => ({
     symptom: entryToEdit?.symptom || '',
@@ -78,6 +88,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
     startTime: getLocalDateTimeString(entryToEdit?.startTime),
     duration: entryToEdit?.duration || '',
     linkedFoodEntryId: entryToEdit?.linkedFoodEntryId || UNLINKED_FOOD_VALUE,
+    profileId: entryToEdit?.profileId || '',
   });
 
 
@@ -92,17 +103,10 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryToEdit, form.reset]);
 
-
-  useEffect(() => {
-    const allFood = getFoodEntries();
-    const sortedFood = allFood.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setRecentFoodEntries(sortedFood.slice(0, 15)); // Get latest 15 meals
-  }, []);
-
   function onSubmit(data: SymptomLogFormValues) {
     const symptomDataPayload = {
       ...data,
-      startTime: new Date(data.startTime).toISOString(), // Convert local datetime-local string back to ISO string for storage
+      startTime: new Date(data.startTime).toISOString(), 
       linkedFoodEntryId: data.linkedFoodEntryId === UNLINKED_FOOD_VALUE ? undefined : data.linkedFoodEntryId,
     };
 
@@ -119,20 +123,60 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
         description: 'Ihr Symptom wurde erfolgreich dokumentiert.',
       });
     }
-    onFormSubmit(); // Callback to close dialog and refresh timeline
-     form.reset({ // Reset with new current time for startTime if adding new
+    onFormSubmit(); 
+     form.reset({ 
       symptom: '',
       category: undefined,
       severity: undefined,
       startTime: getLocalDateTimeString(),
       duration: '',
       linkedFoodEntryId: UNLINKED_FOOD_VALUE,
+      profileId: '',
     });
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <FormField
+          control={form.control}
+          name="profileId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-1">
+                <UserIcon className="h-4 w-4 text-primary" />
+                Für welches Profil gilt dieses Symptom?
+              </FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Profil auswählen..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {availableProfiles.length === 0 && (
+                    <SelectItem value="no-profile" disabled>
+                      Keine Profile vorhanden.
+                    </SelectItem>
+                  )}
+                  {availableProfiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableProfiles.length === 0 && (
+                 <FormDescription>
+                  Bitte erstellen Sie zuerst Profile unter{' '}
+                  <Link href="/profiles" className="underline hover:text-primary">Profile verwalten</Link>.
+                </FormDescription>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="symptom"
@@ -265,7 +309,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
         />
         
         <div className="flex justify-end">
-          <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={availableProfiles.length === 0 && !entryToEdit}>
             <HeartPulse className="mr-2 h-4 w-4" /> {entryToEdit ? 'Änderungen speichern' : 'Symptom speichern'}
           </Button>
         </div>
@@ -273,4 +317,3 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
     </Form>
   );
 }
-

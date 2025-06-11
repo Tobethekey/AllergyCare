@@ -1,9 +1,21 @@
 
+export interface AppSettings { // Renamed from UserProfile
+  name?: string;
+  notes?: string;
+}
+
+export interface UserProfile { // New: for individual user profiles
+  id: string;
+  name: string;
+  // avatar?: string; // Future enhancement: e.g., color or initials
+}
+
 export interface FoodEntry {
   id: string;
-  timestamp: string; // ISO string - Creation time, should not be editable
+  timestamp: string; 
   foodItems: string;
-  photo?: string; // base64 encoded image string or a placeholder URL
+  photo?: string; 
+  profileIds: string[]; // New: Array of UserProfile IDs
 }
 
 export type SymptomCategory = 'Hautreaktionen' | 'Magen-Darm' | 'Atmung' | 'Allgemeinzustand';
@@ -15,22 +27,17 @@ export const symptomSeverities: SymptomSeverity[] = ['leicht', 'mittel', 'schwer
 
 export interface SymptomEntry {
   id: string;
-  loggedAt: string; // ISO string for when it was logged - Creation time, should not be editable
+  loggedAt: string; 
   symptom: string;
   category: SymptomCategory;
   severity: SymptomSeverity;
-  startTime: string; // ISO string for local time intended by user - This IS editable
-  duration: string; // e.g., "2 Stunden", "30 Minuten", "anhaltend"
-  linkedFoodEntryId?: string; // ID of the linked food entry
-}
-
-export interface UserProfile {
-  name?: string;
-  notes?: string;
+  startTime: string; 
+  duration: string; 
+  linkedFoodEntryId?: string; 
+  profileId: string; // New: Single UserProfile ID
 }
 
 export interface AiSuggestion {
   possibleTriggers: string[];
   reasoning: string;
 }
-

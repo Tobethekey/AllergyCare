@@ -1,21 +1,22 @@
+
 import PageHeader from '@/components/PageHeader';
-import { UserProfileForm } from '@/components/profile/UserProfileForm';
+import { AppSettingsForm } from '@/components/settings/AppSettingsForm'; // Renamed and path changed
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 
-export default function ProfilePage() {
+export default function AppSettingsPage() { // Renamed component
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Benutzerprofil"
-        description="Verwalten Sie hier grundlegende Informationen und Notizen."
+        title="Allgemeine Notizen & App-Name" // Title changed
+        description="Verwalten Sie hier übergreifende Notizen und einen optionalen Namen für Berichte." // Description changed
       />
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-primary">Ihre Daten</CardTitle>
+          <CardTitle className="font-headline text-primary">Ihre allgemeinen Daten</CardTitle> {/* Title changed */}
         </CardHeader>
         <CardContent>
-          <UserProfileForm />
+          <AppSettingsForm /> {/* Component changed */}
         </CardContent>
       </Card>
       <Card className="shadow-lg border-yellow-500/50 bg-yellow-500/5">
