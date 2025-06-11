@@ -7,7 +7,6 @@ import {
   ListPlus,
   History,
   DownloadCloud,
-  User, // Kept for AppSettings/Notes page
   HelpCircle, 
   PanelLeft,
 } from 'lucide-react';
@@ -35,7 +34,6 @@ const navItems: NavItem[] = [
   { href: '/symptom-log', icon: ListPlus, label: 'Symptom-Doku', tooltip: 'Symptome erfassen' },
   { href: '/timeline', icon: History, label: 'Historie', tooltip: 'Zeitliche Übersicht' },
   { href: '/reports', icon: DownloadCloud, label: 'Download', tooltip: 'Berichte herunterladen/exportieren' },
-  { href: '/profile', icon: User, label: 'Notizen', tooltip: 'Allgemeine Notizen & Einstellungen' }, // Label changed
   { href: '/help', icon: HelpCircle, label: 'Hilfe', tooltip: 'Hilfe & Informationen'},
 ];
 
