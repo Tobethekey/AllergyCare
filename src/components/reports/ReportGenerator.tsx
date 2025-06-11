@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Image from 'next/image';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type ReportItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'symptom' });
 
@@ -92,21 +94,115 @@ export function ReportGenerator() {
     setFilteredItems(items);
   };
   
-  const handlePrint = () => {
-    console.log('handlePrint called. loadingInitialData:', loadingInitialData, 'filteredItems.length:', filteredItems.length);
-    if (loadingInitialData || filteredItems.length === 0) {
-      console.log('Print button is disabled, print action will not proceed.');
+  const handleDirectPdfDownload = async () => {
+    if (loadingInitialData || filteredItems.length === 0 || !reportPreviewRef.current) {
+      console.warn('PDF generation conditions not met.');
       return;
     }
-    console.log('Attempting to call window.print()...');
-    try {
-      window.print();
-      console.log('window.print() was called.');
-    } catch (e) {
-      console.error('Error occurred during window.print():', e);
-      alert('Ein Fehler ist beim Versuch, den Druckdialog zu öffnen, aufgetreten. Bitte überprüfen Sie die Browser-Konsole.');
+
+    const reportElement = reportPreviewRef.current;
+    
+    // Store original styles to restore them later
+    const originalStyles = {
+        width: reportElement.style.width,
+        height: reportElement.style.height,
+        padding: reportElement.style.padding,
+        overflow: reportElement.style.overflow,
+        position: reportElement.style.position,
+        left: reportElement.style.left,
+        top: reportElement.style.top,
+    };
+    
+    // Prepare element for canvas rendering to mimic print styles
+    // This helps html2canvas capture a layout more suitable for PDF
+    reportElement.style.width = '210mm'; // A4 width
+    reportElement.style.height = 'auto'; // Auto height based on content
+    reportElement.style.padding = '15mm'; // Simulate print margins
+    reportElement.style.overflow = 'visible'; // Ensure all content is captured
+    // Temporarily move off-screen to avoid layout shifts if styles affect visible page
+    reportElement.style.position = 'absolute';
+    reportElement.style.left = '-9999px';
+    reportElement.style.top = '-9999px';
+
+    const canvas = await html2canvas(reportElement, {
+      scale: 2, // Higher scale for better resolution
+      useCORS: true,
+      logging: false, // Set to true for debugging html2canvas
+      onclone: (documentClone) => {
+        // Apply specific styles to the cloned document for rendering
+        // This is where styles normally handled by @media print can be enforced
+        const clonedReportElement = documentClone.getElementById('report-preview-area');
+        if (clonedReportElement) {
+            clonedReportElement.style.background = 'white';
+            clonedReportElement.style.color = 'black';
+            clonedReportElement.style.fontFamily = 'Arial, sans-serif';
+
+            // Ensure all children also get basic print-friendly styles
+            const allElements = clonedReportElement.querySelectorAll<HTMLElement>('*');
+            allElements.forEach(el => {
+                el.style.color = 'black';
+                el.style.fontFamily = 'Arial, sans-serif';
+                // Reset any theme-specific colors explicitly
+                if (el.classList.contains('text-primary')) el.style.color = 'black';
+                if (el.classList.contains('text-muted-foreground')) el.style.color = 'black';
+                if (el.classList.contains('font-headline')) el.style.fontFamily = 'Arial, sans-serif';
+            });
+            
+            clonedReportElement.querySelectorAll<HTMLElement>('img').forEach(img => {
+                img.style.maxWidth = '100px';
+                img.style.maxHeight = '100px';
+                img.style.border = '1px solid #ccc';
+            });
+            // Make sure report items are not broken across pages if possible (jsPDF handles paging)
+            clonedReportElement.querySelectorAll<HTMLElement>('.report-item').forEach(item => {
+                item.style.breakInside = 'avoid'; 
+            });
+        }
+      }
+    });
+    
+    // Restore original styles to the actual element
+    reportElement.style.width = originalStyles.width;
+    reportElement.style.height = originalStyles.height;
+    reportElement.style.padding = originalStyles.padding;
+    reportElement.style.overflow = originalStyles.overflow;
+    reportElement.style.position = originalStyles.position;
+    reportElement.style.left = originalStyles.left;
+    reportElement.style.top = originalStyles.top;
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // Calculate image dimensions to fit A4 page width, maintaining aspect ratio
+    const imgProps = pdf.getImageProperties(imgData);
+    const imgWidth = pdfWidth;
+    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+    let currentPosition = 0;
+    let remainingImgHeight = imgHeight;
+
+    // Add first page
+    pdf.addImage(imgData, 'PNG', 0, currentPosition, imgWidth, imgHeight);
+    remainingImgHeight -= pdfHeight;
+
+    // Add more pages if content overflows
+    while (remainingImgHeight > 0) {
+      currentPosition -= pdfHeight; // Move the image viewport up for the next page
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, currentPosition, imgWidth, imgHeight);
+      remainingImgHeight -= pdfHeight;
     }
+
+    pdf.save('AllergyCare-Bericht.pdf');
   };
+
 
   return (
     <div className="space-y-6">
@@ -148,7 +244,7 @@ export function ReportGenerator() {
       </Card>
 
       <div className="flex flex-wrap gap-4 justify-end no-print">
-        <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
+        <Button onClick={handleDirectPdfDownload} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
           <Printer className="mr-2 h-4 w-4" /> Download als PDF
         </Button>    
         <Button onClick={() => exportDataToCsv()} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
