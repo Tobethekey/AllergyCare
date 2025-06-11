@@ -305,7 +305,7 @@ export function ReportGenerator() {
                       <p><strong>Dauer:</strong> {item.duration}</p>
                       <p className="text-xs text-muted-foreground">Protokolliert am: {format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr</p>
                       {linkedFoodDetails && (
-                        <div className="mt-1 pt-1 border-t border-dashed">
+                        <div className="mt-2 pt-1 border-t border-dashed">
                            <p className="text-xs flex items-center gap-1">
                             <LinkIcon className="h-3 w-3 text-muted-foreground" />
                             <span className="font-semibold">Verkn. Mahlzeit:</span> 
