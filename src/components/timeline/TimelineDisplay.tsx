@@ -1,3 +1,4 @@
+
 'use client';
 
 import type React from 'react';
@@ -10,6 +11,7 @@ import { Apple, ClipboardPlus, Trash2, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +29,7 @@ type TimelineItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'sy
 export function TimelineDisplay() {
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   const fetchData = () => {
     const foodItems = getFoodEntries().map(entry => ({ ...entry, type: 'food' as const }));
@@ -53,10 +56,20 @@ export function TimelineDisplay() {
       deleteSymptomEntry(id);
     }
     fetchData(); // Refresh data
+    toast({
+      title: "Eintrag gelöscht",
+      description: "Der Eintrag wurde erfolgreich entfernt.",
+    });
   };
 
   if (isLoading) {
-    return <p>Lade Zeitstrahl...</p>;
+    return (
+      <div className="space-y-6">
+        <Card className="shadow-md"><CardHeader><CardTitle><Skeleton className="h-6 w-1/2" /></CardTitle><CardDescription><Skeleton className="h-4 w-3/4" /></CardDescription></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
+        <Card className="shadow-md"><CardHeader><CardTitle><Skeleton className="h-6 w-1/2" /></CardTitle><CardDescription><Skeleton className="h-4 w-3/4" /></CardDescription></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
+        <Card className="shadow-md"><CardHeader><CardTitle><Skeleton className="h-6 w-1/2" /></CardTitle><CardDescription><Skeleton className="h-4 w-3/4" /></CardDescription></CardHeader><CardContent><Skeleton className="h-10 w-full" /></CardContent></Card>
+      </div>
+    );
   }
 
   if (timelineItems.length === 0) {

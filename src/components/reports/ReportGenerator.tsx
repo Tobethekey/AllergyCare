@@ -1,3 +1,4 @@
+
 'use client';
 
 import type React from 'react';
@@ -9,6 +10,7 @@ import { getFoodEntries, getSymptomEntries, exportDataToCsv } from '@/lib/data-s
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Image from 'next/image';
@@ -18,6 +20,7 @@ type ReportItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'symp
 export function ReportGenerator() {
   const [allFoodEntries, setAllFoodEntries] = useState<FoodEntry[]>([]);
   const [allSymptomEntries, setAllSymptomEntries] = useState<SymptomEntry[]>([]);
+  const [loadingInitialData, setLoadingInitialData] = useState(true);
   
   const [filteredItems, setFilteredItems] = useState<ReportItem[]>([]);
   const [startDate, setStartDate] = useState('');
@@ -31,6 +34,7 @@ export function ReportGenerator() {
     const symptoms = getSymptomEntries();
     setAllFoodEntries(food);
     setAllSymptomEntries(symptoms);
+    setLoadingInitialData(false);
   }, []);
 
   useEffect(() => {
@@ -95,30 +99,42 @@ export function ReportGenerator() {
           <CardDescription>Passen Sie den Zeitraum und Suchbegriffe für Ihren Bericht an.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startDate">Startdatum</Label>
-              <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="endDate">Enddatum</Label>
-              <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom)</Label>
-            <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          </div>
+          {loadingInitialData ? (
+            <>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div><Label htmlFor="startDate">Startdatum</Label><Skeleton className="h-10 w-full" /></div>
+                <div><Label htmlFor="endDate">Enddatum</Label><Skeleton className="h-10 w-full" /></div>
+              </div>
+              <div><Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom)</Label><Skeleton className="h-10 w-full" /></div>
+            </>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startDate">Startdatum</Label>
+                  <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="endDate">Enddatum</Label>
+                  <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom)</Label>
+                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap gap-4 justify-end">
-        <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90">
+        <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
           <Printer className="mr-2 h-4 w-4" /> Als PDF Drucken
-        </Button>
-        <Button onClick={exportDataToCsv} variant="outline" className="text-primary border-primary hover:bg-primary/10">
+        </Button>    
+        <Button onClick={exportDataToCsv} variant="outline" className="text-primary border-primary hover:bg-primary/10" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
           <FileDown className="mr-2 h-4 w-4" /> Als CSV Exportieren
-        </Button>
+        </Button>      
       </div>
 
       <Card className="shadow-lg print-container" id="report-preview-area">
@@ -130,10 +146,19 @@ export function ReportGenerator() {
           </CardDescription>
         </CardHeader>
         <CardContent ref={reportPreviewRef} className="report-preview space-y-4">
-          {filteredItems.length === 0 ? (
-             <div className="p-6 text-center text-muted-foreground">
+          {loadingInitialData ? (
+            <div className="space-y-4 p-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground">
                 <AlertCircle className="mx-auto h-10 w-10 mb-2" />
-                Keine Daten für die ausgewählten Filter gefunden.
+                {allFoodEntries.length === 0 && allSymptomEntries.length === 0 
+                  ? "Es sind noch keine Daten vorhanden. Bitte dokumentieren Sie zuerst Mahlzeiten oder Symptome."
+                  : "Keine Daten für die ausgewählten Filter gefunden."
+                }
             </div>
           ) : (
             filteredItems.map(item => (

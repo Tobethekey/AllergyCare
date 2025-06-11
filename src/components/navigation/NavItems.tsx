@@ -7,6 +7,7 @@ import {
   CalendarDays,
   FileText,
   User,
+  HelpCircle, 
   PanelLeft,
 } from 'lucide-react';
 import {
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { href: '/timeline', icon: CalendarDays, label: 'Zeitstrahl', tooltip: 'Zeitliche Übersicht' },
   { href: '/reports', icon: FileText, label: 'Berichte', tooltip: 'Berichte erstellen/exportieren' },
   { href: '/profile', icon: User, label: 'Profil', tooltip: 'Benutzerprofil' },
+  { href: '/help', icon: HelpCircle, label: 'Hilfe', tooltip: 'Hilfe & Informationen'},
 ];
 
 interface NavItemsProps {
