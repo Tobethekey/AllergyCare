@@ -1,4 +1,6 @@
 
+'use client';
+
 import PageHeader from '@/components/PageHeader';
 import { FoodLogForm } from '@/components/forms/FoodLogForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
