@@ -11,25 +11,47 @@ const AppLogo: React.FC = () => {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
+        <defs>
+          {/* Defined a more rounded, fuller petal shape */}
+          <path id="petal" d="M0 -8 Q-2.5 0 0 1.5 Q2.5 0 0 -8Z" fill="#fffaef"/>
+        </defs>
         {/* Outer circle: primary color */}
         <circle cx="12" cy="12" r="11.5" fill="#809580"/>
 
-        {/* Artichoke-style Flower: beige (#fffaef) - Larger and more central */}
-        {/* Base of flower / lowest, widest bracts */}
-        <path d="M12 20 L7 18 C7 17, 6 15, 7 14 L9 11.5 L12 13 L15 11.5 L17 14 C18 15, 17 17, 17 18 L12 20Z" fill="#fffaef"/>
+        {/* Outer Petals - Scaled up for more presence */}
+        <use href="#petal" transform="translate(12 12) rotate(0) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(30) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(60) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(90) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(120) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(150) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(180) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(210) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(240) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(270) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(300) scale(1.4)"/>
+        <use href="#petal" transform="translate(12 12) rotate(330) scale(1.4)"/>
 
-        {/* Middle layer of bracts */}
-        <path d="M12 17 L8.5 15.5 C8.5 14.5, 7.5 13, 8.5 12 L10 9.5 L12 11 L14 9.5 L15.5 12 C16.5 13, 15.5 14.5, 15.5 15.5 L12 17Z" fill="#fffaef"/>
+        {/* Inner Petals - Slightly smaller scale */}
+        <use href="#petal" transform="translate(12 12) rotate(15) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(45) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(75) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(105) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(135) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(165) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(195) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(225) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(255) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(285) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(315) scale(1.0)"/>
+        <use href="#petal" transform="translate(12 12) rotate(345) scale(1.0)"/>
 
-        {/* Upper-middle layer of bracts */}
-        <path d="M12 14.5 L9.5 13 C9.5 12, 8.5 11, 9.5 10 L10.5 8 L12 9.5 L13.5 8 L14.5 10 C15.5 11, 14.5 12, 14.5 13 L12 14.5Z" fill="#fffaef"/>
+        {/* Center Circle for Plus background */}
+        <circle cx="12" cy="12" r="3" fill="#fffaef" />
 
-        {/* Top/central part of flower - smallest layer, forming a tip */}
-        <path d="M12 12 L10.5 10.5 C10.5 9.5, 11 8, 11.5 7 L12 6 L12.5 7 C13 8, 13.5 9.5, 13.5 10.5 L12 12Z" fill="#fffaef"/>
-
-        {/* Cross inside flower: green (#809580) - Placed on the top central part */}
-        <rect x="11" y="8.25" width="2" height="0.5" fill="#809580" rx="0.1"/> {/* Horizontal bar */}
-        <rect x="11.75" y="7.5" width="0.5" height="2" fill="#809580" rx="0.1"/> {/* Vertical bar */}
+        {/* Plus Sign: green (#809580), slightly thicker and with rounded corners */}
+        <rect x="10.75" y="9" width="2.5" height="6" fill="#809580" rx="0.5"/>
+        <rect x="9" y="10.75" width="6" height="2.5" fill="#809580" rx="0.5"/>
       </svg>
     </div>
   );

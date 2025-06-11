@@ -45,7 +45,12 @@ const NavItems: React.FC<NavItemsProps> = ({ pathname }) => {
   return (
     <>
       <SidebarHeader className="flex items-center justify-between">
-        <AppLogo />
+        <div className="flex items-center gap-2">
+          <AppLogo />
+          <span className="font-headline text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:hidden">
+            AllergyCare
+          </span>
+        </div>
         <SidebarTrigger className="md:hidden">
            <PanelLeft />
         </SidebarTrigger>
