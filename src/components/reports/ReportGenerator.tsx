@@ -5,7 +5,7 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon } from 'lucide-react'; // Added Apple, ClipboardPlus
+import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon } from 'lucide-react';
 import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -93,7 +93,19 @@ export function ReportGenerator() {
   };
   
   const handlePrint = () => {
-    window.print();
+    console.log('handlePrint called. loadingInitialData:', loadingInitialData, 'filteredItems.length:', filteredItems.length);
+    if (loadingInitialData || filteredItems.length === 0) {
+      console.log('Print button is disabled, print action will not proceed.');
+      return;
+    }
+    console.log('Attempting to call window.print()...');
+    try {
+      window.print();
+      console.log('window.print() was called.');
+    } catch (e) {
+      console.error('Error occurred during window.print():', e);
+      alert('Ein Fehler ist beim Versuch, den Druckdialog zu öffnen, aufgetreten. Bitte überprüfen Sie die Browser-Konsole.');
+    }
   };
 
   return (
@@ -185,7 +197,7 @@ export function ReportGenerator() {
                       <p><strong>Nahrungsmittel:</strong> {item.foodItems}</p>
                       {item.photo && (
                           <div className="mt-2 relative w-32 h-32 rounded overflow-hidden border border-input">
-                              <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal" />
+                              <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal"/>
                           </div>
                       )}
                     </div>
@@ -308,4 +320,3 @@ export function ReportGenerator() {
     </div>
   );
 }
-
