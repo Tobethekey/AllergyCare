@@ -42,7 +42,10 @@ export function AppSettingsForm() { // Renamed component
 
   useEffect(() => {
     const settings = getAppSettings(); // Use renamed function
-    form.reset(settings);
+    form.reset({
+      name: settings.name || '',
+      notes: settings.notes || '',
+    });
   }, [form]);
 
   function onSubmit(data: AppSettingsFormValues) { // Use renamed type
@@ -63,7 +66,14 @@ export function AppSettingsForm() { // Renamed component
             <FormItem>
               <FormLabel>Optionaler Name für Berichte</FormLabel> {/* Label changed */}
               <FormControl>
-                <Input placeholder="z.B. Familie Mustermann" {...field} /> {/* Placeholder changed */}
+                <Input
+                  placeholder="z.B. Familie Mustermann"
+                  name={field.name}
+                  value={field.value || ''} // Ensure value is a string
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
               </FormControl>
               <FormDescription>
                 Dieser Name kann optional in Berichten verwendet werden.
@@ -82,7 +92,11 @@ export function AppSettingsForm() { // Renamed component
                 <Textarea
                   placeholder="Notizen zu bekannten Allergien, Medikamenten, etc., die für alle Profile relevant sein könnten."
                   className="resize-none h-32"
-                  {...field}
+                  value={field.value || ''} // Ensure value is a string
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
                 />
               </FormControl>
               <FormDescription>
