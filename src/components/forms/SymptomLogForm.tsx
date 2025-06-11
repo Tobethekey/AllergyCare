@@ -31,6 +31,8 @@ const getLocalDateTimeString = () => {
   return localDate.toISOString().substring(0, 16);
 };
 
+const UNLINKED_FOOD_VALUE = "___UNLINKED___";
+
 const symptomLogFormSchema = z.object({
   symptom: z.string().min(2, {
     message: 'Bitte beschreiben Sie das Symptom.',
@@ -56,7 +58,7 @@ const defaultValues: Partial<SymptomLogFormValues> = {
   symptom: '',
   startTime: getLocalDateTimeString(),
   duration: '',
-  linkedFoodEntryId: '', // Empty string for "none" option
+  linkedFoodEntryId: UNLINKED_FOOD_VALUE, // Use the constant for "none" option
 };
 
 export function SymptomLogForm() {
@@ -78,7 +80,7 @@ export function SymptomLogForm() {
   function onSubmit(data: SymptomLogFormValues) {
     addSymptomEntry({
       ...data,
-      linkedFoodEntryId: data.linkedFoodEntryId === '' ? undefined : data.linkedFoodEntryId,
+      linkedFoodEntryId: data.linkedFoodEntryId === UNLINKED_FOOD_VALUE ? undefined : data.linkedFoodEntryId,
     });
     toast({
       title: 'Symptom gespeichert',
@@ -201,14 +203,14 @@ export function SymptomLogForm() {
                 <LinkIcon className="h-4 w-4 text-muted-foreground" />
                 Mahlzeit verknüpfen (optional)
               </FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
+              <Select onValueChange={field.onChange} defaultValue={field.value || UNLINKED_FOOD_VALUE}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Kürzliche Mahlzeit auswählen..." />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">Keine Mahlzeit verknüpfen</SelectItem>
+                  <SelectItem value={UNLINKED_FOOD_VALUE}>Keine Mahlzeit verknüpfen</SelectItem>
                   {recentFoodEntries.map((food) => (
                     <SelectItem key={food.id} value={food.id}>
                       {new Date(food.timestamp).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr - {food.foodItems.substring(0, 40)}{food.foodItems.length > 40 ? '...' : ''}
