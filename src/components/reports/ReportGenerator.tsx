@@ -5,8 +5,8 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Calendar, Filter, AlertCircle, ClipboardPlus, Apple } from 'lucide-react';
-import { getFoodEntries, getSymptomEntries, exportDataToCsv } from '@/lib/data-service';
+import { Printer, FileDown, Calendar, Filter, AlertCircle, ClipboardPlus, Apple, LinkIcon } from 'lucide-react';
+import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -70,8 +70,15 @@ export function ReportGenerator() {
         if (item.type === 'food') {
           return item.foodItems.toLowerCase().includes(lowerSearchTerm);
         } else {
-          return item.symptom.toLowerCase().includes(lowerSearchTerm) || 
+          let match = item.symptom.toLowerCase().includes(lowerSearchTerm) || 
                  item.category.toLowerCase().includes(lowerSearchTerm);
+          if (item.linkedFoodEntryId) {
+            const linkedFood = getFoodEntryById(item.linkedFoodEntryId);
+            if (linkedFood && linkedFood.foodItems.toLowerCase().includes(lowerSearchTerm)) {
+              match = true;
+            }
+          }
+          return match;
         }
       });
     }
@@ -120,8 +127,8 @@ export function ReportGenerator() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom)</Label>
-                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/verkn. Mahlzeit)</Label>
+                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag, verknüpfte Pizza" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
             </>
           )}
@@ -132,7 +139,7 @@ export function ReportGenerator() {
         <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
           <Printer className="mr-2 h-4 w-4" /> Als PDF Drucken
         </Button>    
-        <Button onClick={exportDataToCsv} variant="outline" className="text-primary border-primary hover:bg-primary/10" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
+        <Button onClick={() => exportDataToCsv()} variant="outline" className="text-primary border-primary hover:bg-primary/10" disabled={loadingInitialData || (allFoodEntries.length === 0 && allSymptomEntries.length === 0)}>
           <FileDown className="mr-2 h-4 w-4" /> Als CSV Exportieren
         </Button>      
       </div>
@@ -141,7 +148,7 @@ export function ReportGenerator() {
         <CardHeader>
           <CardTitle className="font-headline text-2xl text-primary text-center">Gesundheitsbericht AllergyCare</CardTitle>
           <CardDescription className="text-center">
-            Zeitraum: {startDate ? format(parseISO(startDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'} - {endDate ? format(parseISO(endDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'}
+            Zeitraum: {startDate && isValid(parseISO(startDate)) ? format(parseISO(startDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'} - {endDate && isValid(parseISO(endDate)) ? format(parseISO(endDate), "dd.MM.yyyy", { locale: de }) : 'Unbegrenzt'}
             {searchTerm && <span className="block">Suchbegriff: {searchTerm}</span>}
           </CardDescription>
         </CardHeader>
@@ -161,32 +168,50 @@ export function ReportGenerator() {
                 }
             </div>
           ) : (
-            filteredItems.map(item => (
-              <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page">
-                <h4 className="font-semibold text-primary flex items-center gap-2">
-                  {item.type === 'food' ? <Apple size={18} /> : <ClipboardPlus size={18} />}
-                  {item.type === 'food' ? 'Mahlzeit' : 'Symptom'} - {format(parseISO(item.type === 'food' ? item.timestamp : item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr
-                </h4>
-                {item.type === 'food' ? (
-                  <div className="text-sm mt-1">
-                    <p><strong>Nahrungsmittel:</strong> {item.foodItems}</p>
-                    {item.photo && (
-                        <div className="mt-2 relative w-32 h-32 rounded overflow-hidden border border-input">
-                            <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal"/>
+            filteredItems.map(item => {
+              let linkedFoodDetails: FoodEntry | undefined;
+              if (item.type === 'symptom' && item.linkedFoodEntryId) {
+                linkedFoodDetails = getFoodEntryById(item.linkedFoodEntryId);
+              }
+
+              return (
+                <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page">
+                  <h4 className="font-semibold text-primary flex items-center gap-2">
+                    {item.type === 'food' ? <Apple size={18} /> : <ClipboardPlus size={18} />}
+                    {item.type === 'food' ? 'Mahlzeit' : 'Symptom'} - {format(parseISO(item.type === 'food' ? item.timestamp : item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr
+                  </h4>
+                  {item.type === 'food' ? (
+                    <div className="text-sm mt-1">
+                      <p><strong>Nahrungsmittel:</strong> {item.foodItems}</p>
+                      {item.photo && (
+                          <div className="mt-2 relative w-32 h-32 rounded overflow-hidden border border-input">
+                              <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal" />
+                          </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm mt-1 space-y-0.5">
+                      <p><strong>Beschreibung:</strong> {item.symptom}</p>
+                      <p><strong>Kategorie:</strong> {item.category}</p>
+                      <p><strong>Schweregrad:</strong> {item.severity}</p>
+                      <p><strong>Dauer:</strong> {item.duration}</p>
+                      <p className="text-xs text-muted-foreground">Protokolliert am: {format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr</p>
+                      {linkedFoodDetails && (
+                        <div className="mt-1 pt-1 border-t border-dashed">
+                           <p className="text-xs flex items-center gap-1">
+                            <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-semibold">Verkn. Mahlzeit:</span> 
+                            <span className="text-muted-foreground">
+                              {format(parseISO(linkedFoodDetails.timestamp), "dd.MM.yy HH:mm", { locale: de })} - {linkedFoodDetails.foodItems.substring(0,30)}{linkedFoodDetails.foodItems.length > 30 ? '...' : ''}
+                            </span>
+                          </p>
                         </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm mt-1 space-y-0.5">
-                    <p><strong>Beschreibung:</strong> {item.symptom}</p>
-                    <p><strong>Kategorie:</strong> {item.category}</p>
-                    <p><strong>Schweregrad:</strong> {item.severity}</p>
-                    <p><strong>Dauer:</strong> {item.duration}</p>
-                    <p className="text-xs text-muted-foreground">Protokolliert am: {format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr</p>
-                  </div>
-                )}
-              </div>
-            ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </CardContent>
       </Card>
@@ -219,4 +244,3 @@ export function ReportGenerator() {
     </div>
   );
 }
-

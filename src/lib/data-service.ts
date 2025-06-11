@@ -1,3 +1,4 @@
+
 'use client';
 import type { FoodEntry, SymptomEntry, UserProfile, AiSuggestion } from './types';
 
@@ -36,6 +37,10 @@ export const addFoodEntry = (entry: Omit<FoodEntry, 'id' | 'timestamp'>): FoodEn
 export const deleteFoodEntry = (id: string): void => {
   const entries = getFoodEntries();
   saveToLocalStorage(FOOD_LOG_KEY, entries.filter(entry => entry.id !== id));
+};
+export const getFoodEntryById = (id: string): FoodEntry | undefined => {
+  const entries = getFoodEntries();
+  return entries.find(entry => entry.id === id);
 };
 
 // Symptom Entries
@@ -85,16 +90,16 @@ export const exportDataToCsv = () => {
   });
 
   csvContent += "\r\nSymptom Entries\r\n";
-  csvContent += "ID,Logged At,Symptom,Category,Severity,Start Time,Duration\r\n";
+  csvContent += "ID,Logged At,Symptom,Category,Severity,Start Time,Duration,Linked Food ID\r\n";
   symptomEntries.forEach(entry => {
-    const row = [entry.id, entry.loggedAt, `"${entry.symptom.replace(/"/g, '""')}"`, entry.category, entry.severity, entry.startTime, entry.duration].join(",");
+    const row = [entry.id, entry.loggedAt, `"${entry.symptom.replace(/"/g, '""')}"`, entry.category, entry.severity, entry.startTime, entry.duration, entry.linkedFoodEntryId || ''].join(",");
     csvContent += row + "\r\n";
   });
 
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", "allergy_life_data.csv");
+  link.setAttribute("download", "allergy_care_data.csv");
   document.body.appendChild(link); 
   link.click();
   document.body.removeChild(link);
@@ -109,9 +114,17 @@ export const getFormattedLogsForAI = (): { foodLog: string, symptomLog: string }
     `Datum: ${new Date(entry.timestamp).toLocaleString('de-DE')}, Lebensmittel: ${entry.foodItems}`
   ).join('\n');
 
-  const symptomLog = symptomEntries.map(entry => 
-    `Datum: ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity}, Dauer: ${entry.duration}`
-  ).join('\n');
+  // Include linked food in symptom log for AI if present
+  const symptomLog = symptomEntries.map(entry => {
+    let logEntry = `Datum: ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity}, Dauer: ${entry.duration}`;
+    if (entry.linkedFoodEntryId) {
+      const linkedFood = getFoodEntryById(entry.linkedFoodEntryId);
+      if (linkedFood) {
+        logEntry += `, Möglicherweise verknüpft mit Mahlzeit: ${linkedFood.foodItems} (protokolliert am ${new Date(linkedFood.timestamp).toLocaleString('de-DE')})`;
+      }
+    }
+    return logEntry;
+  }).join('\n');
   
   return { foodLog, symptomLog };
 };

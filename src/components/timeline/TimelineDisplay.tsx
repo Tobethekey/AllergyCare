@@ -3,11 +3,11 @@
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { getFoodEntries, getSymptomEntries, deleteFoodEntry, deleteSymptomEntry } from '@/lib/data-service';
+import { getFoodEntries, getSymptomEntries, deleteFoodEntry, deleteSymptomEntry, getFoodEntryById } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Apple, ClipboardPlus, Trash2, AlertCircle } from 'lucide-react';
+import { Apple, ClipboardPlus, Trash2, AlertCircle, LinkIcon } from 'lucide-react';
 import Image from 'next/image';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Skeleton } from "@/components/ui/skeleton"; // Added import
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TimelineItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'symptom' });
 
@@ -33,6 +33,7 @@ export function TimelineDisplay() {
   const { toast } = useToast();
 
   const fetchData = () => {
+    setIsLoading(true);
     const foodItems = getFoodEntries().map(entry => ({ ...entry, type: 'food' as const }));
     const symptomItems = getSymptomEntries().map(entry => ({ ...entry, type: 'symptom' as const }));
     
@@ -87,63 +88,81 @@ export function TimelineDisplay() {
 
   return (
     <div className="space-y-6">
-      {timelineItems.map((item) => (
-        <Card key={item.id} className="shadow-md transition-all duration-300 ease-in-out hover:shadow-lg">
-          <CardHeader className="flex flex-row justify-between items-start">
-            <div>
-              <CardTitle className="flex items-center gap-2 font-headline text-lg text-primary">
-                {item.type === 'food' ? <Apple className="h-5 w-5" /> : <ClipboardPlus className="h-5 w-5" />}
-                {item.type === 'food' ? 'Mahlzeit' : 'Symptom'}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {item.type === 'food' 
-                  ? `Dokumentiert: ${format(parseISO(item.timestamp), "dd.MM.yyyy HH:mm", { locale: de })} Uhr`
-                  : `Beginn: ${format(parseISO(item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr (Protokolliert: ${format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr)`}
-              </CardDescription>
-            </div>
-             <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Eintrag löschen?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Möchten Sie diesen Eintrag wirklich unwiderruflich löschen?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(item.id, item.type)} className="bg-destructive hover:bg-destructive/90">
-                      Löschen
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-          </CardHeader>
-          <CardContent>
-            {item.type === 'food' ? (
-              <div className="space-y-2">
-                <p><span className="font-semibold">Nahrungsmittel:</span> {item.foodItems}</p>
-                {item.photo && (
-                  <div className="mt-2 relative w-full max-w-xs h-48 rounded overflow-hidden border border-input">
-                    <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal" />
-                  </div>
-                )}
+      {timelineItems.map((item) => {
+        let linkedFood: FoodEntry | undefined;
+        if (item.type === 'symptom' && item.linkedFoodEntryId) {
+          linkedFood = getFoodEntryById(item.linkedFoodEntryId);
+        }
+
+        return (
+          <Card key={item.id} className="shadow-md transition-all duration-300 ease-in-out hover:shadow-lg">
+            <CardHeader className="flex flex-row justify-between items-start">
+              <div>
+                <CardTitle className="flex items-center gap-2 font-headline text-lg text-primary">
+                  {item.type === 'food' ? <Apple className="h-5 w-5" /> : <ClipboardPlus className="h-5 w-5" />}
+                  {item.type === 'food' ? 'Mahlzeit' : 'Symptom'}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {item.type === 'food' 
+                    ? `Dokumentiert: ${format(parseISO(item.timestamp), "dd.MM.yyyy HH:mm", { locale: de })} Uhr`
+                    : `Beginn: ${format(parseISO(item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr (Protokolliert: ${format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr)`}
+                </CardDescription>
               </div>
-            ) : (
-              <div className="space-y-1">
-                <p><span className="font-semibold">Beschreibung:</span> {item.symptom}</p>
-                <p><span className="font-semibold">Kategorie:</span> {item.category}</p>
-                <p><span className="font-semibold">Schweregrad:</span> {item.severity}</p>
-                <p><span className="font-semibold">Dauer:</span> {item.duration}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+               <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Eintrag löschen?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Möchten Sie diesen Eintrag wirklich unwiderruflich löschen?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(item.id, item.type)} className="bg-destructive hover:bg-destructive/90">
+                        Löschen
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+            </CardHeader>
+            <CardContent>
+              {item.type === 'food' ? (
+                <div className="space-y-2">
+                  <p><span className="font-semibold">Nahrungsmittel:</span> {item.foodItems}</p>
+                  {item.photo && (
+                    <div className="mt-2 relative w-full max-w-xs h-48 rounded overflow-hidden border border-input">
+                      <Image src={item.photo} alt="Mahlzeit Foto" layout="fill" objectFit="cover" data-ai-hint="food meal"/>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p><span className="font-semibold">Beschreibung:</span> {item.symptom}</p>
+                  <p><span className="font-semibold">Kategorie:</span> {item.category}</p>
+                  <p><span className="font-semibold">Schweregrad:</span> {item.severity}</p>
+                  <p><span className="font-semibold">Dauer:</span> {item.duration}</p>
+                  {linkedFood && (
+                    <div className="mt-2 pt-2 border-t border-dashed">
+                       <p className="text-sm flex items-center gap-1">
+                        <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">Verknüpfte Mahlzeit:</span> 
+                        <span className="text-muted-foreground">
+                           {format(parseISO(linkedFood.timestamp), "dd.MM.yy HH:mm", { locale: de })} - {linkedFood.foodItems.substring(0,50)}{linkedFood.foodItems.length > 50 ? '...' : ''}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
