@@ -5,7 +5,7 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Calendar, Filter, AlertCircle, ClipboardPlus, Apple, LinkIcon } from 'lucide-react';
+import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon } from 'lucide-react'; // Added Apple, ClipboardPlus
 import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -98,7 +98,7 @@ export function ReportGenerator() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg no-print">
         <CardHeader>
           <CardTitle className="font-headline text-primary flex items-center gap-2">
             <Filter /> Filteroptionen
@@ -135,7 +135,7 @@ export function ReportGenerator() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-4 justify-end">
+      <div className="flex flex-wrap gap-4 justify-end no-print">
         <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90" disabled={loadingInitialData || filteredItems.length === 0}>
           <Printer className="mr-2 h-4 w-4" /> Download als PDF
         </Button>    
@@ -175,7 +175,7 @@ export function ReportGenerator() {
               }
 
               return (
-                <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page">
+                <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page report-item">
                   <h4 className="font-semibold text-primary flex items-center gap-2">
                     {item.type === 'food' ? <Apple size={18} /> : <ClipboardPlus size={18} />}
                     {item.type === 'food' ? 'Mahlzeit' : 'Symptom'} - {format(parseISO(item.type === 'food' ? item.timestamp : item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr
@@ -219,38 +219,91 @@ export function ReportGenerator() {
       <style jsx global>{`
         @media print {
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
-          .print-container, .print-container * {
-            visibility: visible;
+          html, body {
+            background: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          .print-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            border: none;
-            box-shadow: none;
+          
+          #report-preview-area, 
+          #report-preview-area * {
+            visibility: visible !important;
           }
-          .no-print { /* This class can be added to elements that should never print */
+
+          #report-preview-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            min-height: 100% !important;
+            margin: 0 !important;
+            padding: 15mm !important; /* Page margins for printing */
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            color: black !important;
+            font-size: 10pt !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          #report-preview-area .report-item {
+            border: 1px solid #ccc !important; /* Ensure borders are visible */
+            page-break-inside: avoid; /* Use this instead of break-inside-avoid-page for broader compatibility */
+          }
+          
+          #report-preview-area .text-primary,
+          #report-preview-area .text-muted-foreground,
+          #report-preview-area .font-headline,
+          #report-preview-area .CardTitle, /* Target CardTitle specifically if needed */
+          #report-preview-area .CardDescription { /* Target CardDescription specifically */
+             color: black !important;
+             font-family: Arial, sans-serif !important; /* Use print-friendly fonts */
+          }
+          /* Ensure specific components reset their themed colors */
+          #report-preview-area .CardHeader, #report-preview-area .CardContent {
+            background: white !important;
+          }
+          
+          #report-preview-area h4 { /* Style headings for print */
+            font-family: Arial, sans-serif !important;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: black !important;
+          }
+           #report-preview-area p, #report-preview-area div, #report-preview-area strong {
+             font-family: Arial, sans-serif !important;
+             color: black !important;
+           }
+
+
+          #report-preview-area img {
+            max-width: 100px !important; /* Control image size more strictly for print */
+            max-height: 100px !important;
+            height: auto !important;
+            width: auto !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin-top: 8px !important;
+            margin-bottom: 8px !important;
+            border: 1px solid #eee !important; /* Optional: border around images */
+          }
+          
+          .no-print {
             display: none !important;
           }
-          .break-inside-avoid-page {
-             break-inside: avoid-page;
-          }
-          /* Remove headers and footers from the browser's print dialog if possible */
+
           @page {
-            size: auto;
-            margin: 0mm; 
-          }
-          body {
-            margin: 0 !important;
+            size: A4 portrait; 
+            margin: 0; 
           }
         }
-        .report-preview h4 { font-family: 'Belleza', sans-serif; }
-        .report-preview p, .report-preview div { font-family: 'Alegreya', serif; }
+        /* Non-print specific styles remain */
+        .report-preview h4 { font-family: 'Belleza', sans-serif; } /* For screen */
+        .report-preview p, .report-preview div { font-family: 'Alegreya', serif; } /* For screen */
       `}</style>
     </div>
   );
