@@ -18,14 +18,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HeartPulse, LinkIcon } from 'lucide-react';
-import { addSymptomEntry, getFoodEntries } from '@/lib/data-service';
-import type { FoodEntry, SymptomCategory, SymptomSeverity } from '@/lib/types';
+import { addSymptomEntry, getFoodEntries, updateSymptomEntry } from '@/lib/data-service';
+import type { FoodEntry, SymptomCategory, SymptomSeverity, SymptomEntry as SymptomEntryType } from '@/lib/types';
 import { symptomCategories, symptomSeverities } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 
-const getLocalDateTimeString = () => {
-  const date = new Date();
+const getLocalDateTimeString = (isoDateString?: string) => {
+  const date = isoDateString ? new Date(isoDateString) : new Date();
+  // Check if date is valid, if not, fallback to current date
+  if (isNaN(date.getTime())) {
+    const fallbackDate = new Date();
+    const offset = fallbackDate.getTimezoneOffset() * 60000;
+    const localDate = new Date(fallbackDate.getTime() - offset);
+    return localDate.toISOString().substring(0, 16);
+  }
   const offset = date.getTimezoneOffset() * 60000; // Offset in milliseconds
   const localDate = new Date(date.getTime() - offset);
   return localDate.toISOString().substring(0, 16);
@@ -54,22 +61,37 @@ const symptomLogFormSchema = z.object({
 
 type SymptomLogFormValues = z.infer<typeof symptomLogFormSchema>;
 
-const defaultValues: Partial<SymptomLogFormValues> = {
-  symptom: '',
-  startTime: getLocalDateTimeString(),
-  duration: '',
-  linkedFoodEntryId: UNLINKED_FOOD_VALUE, // Use the constant for "none" option
-};
+interface SymptomLogFormProps {
+  entryToEdit?: SymptomEntryType;
+  onFormSubmit: () => void;
+}
 
-export function SymptomLogForm() {
+
+export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProps) {
   const { toast } = useToast();
   const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
 
+  const getInitialDefaultValues = (): Partial<SymptomLogFormValues> => ({
+    symptom: entryToEdit?.symptom || '',
+    category: entryToEdit?.category,
+    severity: entryToEdit?.severity,
+    startTime: getLocalDateTimeString(entryToEdit?.startTime),
+    duration: entryToEdit?.duration || '',
+    linkedFoodEntryId: entryToEdit?.linkedFoodEntryId || UNLINKED_FOOD_VALUE,
+  });
+
+
   const form = useForm<SymptomLogFormValues>({
     resolver: zodResolver(symptomLogFormSchema),
-    defaultValues,
+    defaultValues: getInitialDefaultValues(),
     mode: 'onChange',
   });
+
+  useEffect(() => {
+    form.reset(getInitialDefaultValues());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryToEdit, form.reset]);
+
 
   useEffect(() => {
     const allFood = getFoodEntries();
@@ -78,17 +100,33 @@ export function SymptomLogForm() {
   }, []);
 
   function onSubmit(data: SymptomLogFormValues) {
-    addSymptomEntry({
+    const symptomDataPayload = {
       ...data,
+      startTime: new Date(data.startTime).toISOString(), // Convert local datetime-local string back to ISO string for storage
       linkedFoodEntryId: data.linkedFoodEntryId === UNLINKED_FOOD_VALUE ? undefined : data.linkedFoodEntryId,
-    });
-    toast({
-      title: 'Symptom gespeichert',
-      description: 'Ihr Symptom wurde erfolgreich dokumentiert.',
-    });
-    form.reset({
-      ...defaultValues,
-      startTime: getLocalDateTimeString(), // Ensure startTime is reset to current local time
+    };
+
+    if (entryToEdit) {
+      updateSymptomEntry(entryToEdit.id, symptomDataPayload);
+      toast({
+        title: 'Symptom aktualisiert',
+        description: 'Ihr Symptom wurde erfolgreich geändert.',
+      });
+    } else {
+      addSymptomEntry(symptomDataPayload);
+      toast({
+        title: 'Symptom gespeichert',
+        description: 'Ihr Symptom wurde erfolgreich dokumentiert.',
+      });
+    }
+    onFormSubmit(); // Callback to close dialog and refresh timeline
+     form.reset({ // Reset with new current time for startTime if adding new
+      symptom: '',
+      category: undefined,
+      severity: undefined,
+      startTime: getLocalDateTimeString(),
+      duration: '',
+      linkedFoodEntryId: UNLINKED_FOOD_VALUE,
     });
   }
 
@@ -123,7 +161,7 @@ export function SymptomLogForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Kategorie</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Kategorie auswählen" />
@@ -146,7 +184,7 @@ export function SymptomLogForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Schweregrad</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Schweregrad auswählen" />
@@ -203,7 +241,7 @@ export function SymptomLogForm() {
                 <LinkIcon className="h-4 w-4 text-muted-foreground" />
                 Mahlzeit verknüpfen (optional)
               </FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value || UNLINKED_FOOD_VALUE}>
+              <Select onValueChange={field.onChange} value={field.value || UNLINKED_FOOD_VALUE} defaultValue={field.value || UNLINKED_FOOD_VALUE}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Kürzliche Mahlzeit auswählen..." />
@@ -228,10 +266,11 @@ export function SymptomLogForm() {
         
         <div className="flex justify-end">
           <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <HeartPulse className="mr-2 h-4 w-4" /> Symptom speichern
+            <HeartPulse className="mr-2 h-4 w-4" /> {entryToEdit ? 'Änderungen speichern' : 'Symptom speichern'}
           </Button>
         </div>
       </form>
     </Form>
   );
 }
+

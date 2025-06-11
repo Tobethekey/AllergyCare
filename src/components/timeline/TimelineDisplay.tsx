@@ -5,9 +5,9 @@ import type React from 'react';
 import { useEffect, useState } from 'react';
 import { getFoodEntries, getSymptomEntries, deleteFoodEntry, deleteSymptomEntry, getFoodEntryById } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Apple, ClipboardPlus, Trash2, AlertCircle, LinkIcon } from 'lucide-react';
+import { Apple, ClipboardPlus, Trash2, AlertCircle, LinkIcon, Edit } from 'lucide-react';
 import Image from 'next/image';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -23,7 +23,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose, // Keep DialogClose if you want an explicit close button inside the form
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FoodLogForm } from '@/components/forms/FoodLogForm';
+import { SymptomLogForm } from '@/components/forms/SymptomLogForm';
+
 
 type TimelineItem = (FoodEntry & { type: 'food' }) | (SymptomEntry & { type: 'symptom' });
 
@@ -31,6 +41,9 @@ export function TimelineDisplay() {
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  const [foodEntryToEdit, setFoodEntryToEdit] = useState<FoodEntry | null>(null);
+  const [symptomEntryToEdit, setSymptomEntryToEdit] = useState<SymptomEntry | null>(null);
 
   const fetchData = () => {
     setIsLoading(true);
@@ -63,6 +76,22 @@ export function TimelineDisplay() {
       description: "Der Eintrag wurde erfolgreich entfernt.",
     });
   };
+
+  const handleEditFoodEntry = (entry: FoodEntry) => {
+    setFoodEntryToEdit(entry);
+  };
+
+  const handleEditSymptomEntry = (entry: SymptomEntry) => {
+    setSymptomEntryToEdit(entry);
+  };
+
+  const handleFormSubmit = () => {
+    fetchData();
+    setFoodEntryToEdit(null);
+    setSymptomEntryToEdit(null);
+    // Toast for update is handled within the forms now
+  };
+
 
   if (isLoading) {
     return (
@@ -108,9 +137,19 @@ export function TimelineDisplay() {
                     : `Beginn: ${format(parseISO(item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr (Protokolliert: ${format(parseISO(item.loggedAt), "dd.MM.yyyy HH:mm", { locale: de })} Uhr)`}
                 </CardDescription>
               </div>
-               <AlertDialog>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground hover:text-primary"
+                  onClick={() => item.type === 'food' ? handleEditFoodEntry(item as FoodEntry) : handleEditSymptomEntry(item as SymptomEntry)}
+                  aria-label="Eintrag bearbeiten"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" aria-label="Eintrag löschen">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -129,6 +168,7 @@ export function TimelineDisplay() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              </div>
             </CardHeader>
             <CardContent>
               {item.type === 'food' ? (
@@ -163,6 +203,31 @@ export function TimelineDisplay() {
           </Card>
         );
       })}
+
+      {/* Dialog for Editing Food Entry */}
+      <Dialog open={!!foodEntryToEdit} onOpenChange={(isOpen) => !isOpen && setFoodEntryToEdit(null)}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Mahlzeit bearbeiten</DialogTitle>
+          </DialogHeader>
+          {foodEntryToEdit && (
+            <FoodLogForm entryToEdit={foodEntryToEdit} onFormSubmit={handleFormSubmit} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for Editing Symptom Entry */}
+      <Dialog open={!!symptomEntryToEdit} onOpenChange={(isOpen) => !isOpen && setSymptomEntryToEdit(null)}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Symptom bearbeiten</DialogTitle>
+          </DialogHeader>
+          {symptomEntryToEdit && (
+            <SymptomLogForm entryToEdit={symptomEntryToEdit} onFormSubmit={handleFormSubmit} />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

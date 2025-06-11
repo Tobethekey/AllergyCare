@@ -34,6 +34,19 @@ export const addFoodEntry = (entry: Omit<FoodEntry, 'id' | 'timestamp'>): FoodEn
   saveToLocalStorage(FOOD_LOG_KEY, [...entries, newEntry]);
   return newEntry;
 };
+export const updateFoodEntry = (id: string, dataToUpdate: Omit<FoodEntry, 'id' | 'timestamp'>): FoodEntry | undefined => {
+  const entries = getFoodEntries();
+  const entryIndex = entries.findIndex(entry => entry.id === id);
+  if (entryIndex === -1) return undefined;
+
+  const updatedEntry: FoodEntry = {
+    ...entries[entryIndex], // Keep original id and timestamp
+    ...dataToUpdate, // Apply updates
+  };
+  entries[entryIndex] = updatedEntry;
+  saveToLocalStorage(FOOD_LOG_KEY, entries);
+  return updatedEntry;
+};
 export const deleteFoodEntry = (id: string): void => {
   const entries = getFoodEntries();
   saveToLocalStorage(FOOD_LOG_KEY, entries.filter(entry => entry.id !== id));
@@ -54,6 +67,19 @@ export const addSymptomEntry = (entry: Omit<SymptomEntry, 'id' | 'loggedAt'>): S
   };
   saveToLocalStorage(SYMPTOM_LOG_KEY, [...entries, newEntry]);
   return newEntry;
+};
+export const updateSymptomEntry = (id: string, dataToUpdate: Omit<SymptomEntry, 'id' | 'loggedAt'>): SymptomEntry | undefined => {
+  const entries = getSymptomEntries();
+  const entryIndex = entries.findIndex(entry => entry.id === id);
+  if (entryIndex === -1) return undefined;
+
+  const updatedEntry: SymptomEntry = {
+    ...entries[entryIndex], // Keep original id and loggedAt
+    ...dataToUpdate, // Apply updates
+  };
+  entries[entryIndex] = updatedEntry;
+  saveToLocalStorage(SYMPTOM_LOG_KEY, entries);
+  return updatedEntry;
 };
 export const deleteSymptomEntry = (id: string): void => {
   const entries = getSymptomEntries();
@@ -128,3 +154,4 @@ export const getFormattedLogsForAI = (): { foodLog: string, symptomLog: string }
   
   return { foodLog, symptomLog };
 };
+
