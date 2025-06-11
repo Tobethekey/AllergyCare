@@ -5,7 +5,7 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Calendar, Filter, AlertCircle } from 'lucide-react';
+import { Printer, FileDown, Calendar, Filter, AlertCircle, ClipboardPlus, Apple } from 'lucide-react';
 import { getFoodEntries, getSymptomEntries, exportDataToCsv } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -219,3 +219,4 @@ export function ReportGenerator() {
     </div>
   );
 }
+
