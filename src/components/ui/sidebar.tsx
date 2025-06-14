@@ -60,7 +60,7 @@ const SidebarProvider = React.forwardRef<
       className,
       style,
       children,
-      ...props
+      ...props,
     },
     ref
   ) => {
