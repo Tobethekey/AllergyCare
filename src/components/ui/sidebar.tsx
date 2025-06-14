@@ -29,9 +29,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 type SidebarContext = {
   state: "expanded" | "collapsed"
   open: boolean
-  setOpen: (open: boolean) => void
-  openMobile: boolean
-  setOpenMobile: (open: boolean) => void
+  setOpen?: (open: boolean) => void // Made optional as state is external for mobile
   isMobile: boolean
   toggleSidebar: () => void
 }
@@ -56,7 +54,6 @@ const SidebarProvider = React.forwardRef<
   }
 >(
   (
-    {
       defaultOpen = true,
       open: openProp,
       onOpenChange: setOpenProp,
@@ -68,7 +65,6 @@ const SidebarProvider = React.forwardRef<
     ref
   ) => {
     const isMobile = useIsMobile()
-    const [openMobile, setOpenMobile] = React.useState(false)
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
@@ -91,10 +87,8 @@ const SidebarProvider = React.forwardRef<
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
-    }, [isMobile, setOpen, setOpenMobile])
+      // Toggling logic will be handled by the parent component (layout.tsx)
+    }, [])
 
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
@@ -120,13 +114,11 @@ const SidebarProvider = React.forwardRef<
       () => ({
         state,
         open,
-        setOpen,
+ setOpen: setOpenProp || _setOpen, // Provide the external setter if available, otherwise internal
         isMobile,
-        openMobile,
-        setOpenMobile,
         toggleSidebar,
       }),
-      [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+ [state, open, setOpenProp, _setOpen, isMobile, toggleSidebar]
     )
 
     return (
@@ -163,6 +155,10 @@ const Sidebar = React.forwardRef<
     variant?: "sidebar" | "floating" | "inset"
     collapsible?: "offcanvas" | "icon" | "none"
   }
+& {
+    isOpen: boolean; // Prop to control mobile sidebar visibility
+    onClose: () => void; // Prop to handle mobile sidebar close
+  }
 >(
   (
     {
@@ -170,12 +166,14 @@ const Sidebar = React.forwardRef<
       variant = "sidebar",
       collapsible = "offcanvas",
       className,
+      isOpen, // Destructure the new prop
+      onClose, // Destructure the new prop
       children,
       ...props
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -193,8 +191,8 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
-      return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+ return (
+        <Sheet open={isOpen} onOpenChange={onClose} {...props}> {/* Use isOpen and onClose props */}
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
@@ -214,7 +212,7 @@ const Sidebar = React.forwardRef<
 
     return (
       <div
-        ref={ref}
+ ref={ref}
         className="group peer hidden md:block text-sidebar-foreground"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
@@ -243,7 +241,7 @@ const Sidebar = React.forwardRef<
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className
-          )}
+ )
           {...props}
         >
           <div
