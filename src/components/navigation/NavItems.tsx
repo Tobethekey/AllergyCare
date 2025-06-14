@@ -1,4 +1,3 @@
-
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -8,6 +7,7 @@ import {
   History,
   DownloadCloud,
   HelpCircle, 
+  Settings,
   PanelLeft,
 } from 'lucide-react';
 import {
@@ -29,11 +29,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard' },
-  { href: '/profiles', icon: Users, label: 'Profile', tooltip: 'Profile verwalten' }, // New
+  { href: '/profiles', icon: Users, label: 'Profile', tooltip: 'Profile verwalten' },
   { href: '/food-log', icon: BookCopy, label: 'Mahlzeiten-Doku', tooltip: 'Mahlzeiten dokumentieren' },
   { href: '/symptom-log', icon: ListPlus, label: 'Symptom-Doku', tooltip: 'Symptome erfassen' },
   { href: '/timeline', icon: History, label: 'Historie', tooltip: 'Zeitliche Übersicht' },
   { href: '/reports', icon: DownloadCloud, label: 'Download', tooltip: 'Berichte herunterladen/exportieren' },
+  { href: '/settings', icon: Settings, label: 'Einstellungen', tooltip: 'App-Einstellungen' },
   { href: '/help', icon: HelpCircle, label: 'Hilfe', tooltip: 'Hilfe & Informationen'},
 ];
 

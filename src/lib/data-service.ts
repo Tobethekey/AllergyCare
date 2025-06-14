@@ -1,4 +1,3 @@
-
 'use client';
 import type { FoodEntry, SymptomEntry, AppSettings, UserProfile, AiSuggestion } from './types';
 
@@ -21,6 +20,8 @@ function saveToLocalStorage<T>(key: string, value: T): void {
     return;
   }
   window.localStorage.setItem(key, JSON.stringify(value));
+  // Update last activity timestamp
+  window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
 }
 
 // User Profiles (New)
@@ -153,6 +154,26 @@ export const clearAiSuggestions = (): void => {
   }
 };
 
+// Data validation and cleanup
+export const validateAndCleanData = (): void => {
+  const profiles = getUserProfiles();
+  const profileIds = new Set(profiles.map(p => p.id));
+  
+  // Clean food entries
+  const foodEntries = getFoodEntries();
+  const cleanedFoodEntries = foodEntries.map(entry => ({
+    ...entry,
+    profileIds: entry.profileIds.filter(id => profileIds.has(id))
+  }));
+  saveToLocalStorage(FOOD_LOG_KEY, cleanedFoodEntries);
+  
+  // Clean symptom entries
+  const symptomEntries = getSymptomEntries();
+  const cleanedSymptomEntries = symptomEntries.filter(entry => 
+    profileIds.has(entry.profileId)
+  );
+  saveToLocalStorage(SYMPTOM_LOG_KEY, cleanedSymptomEntries);
+};
 
 // CSV Export
 export const exportDataToCsv = () => {
