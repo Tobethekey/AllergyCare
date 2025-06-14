@@ -146,4 +146,4 @@ const SidebarProvider = React.forwardRef<
       // Add event listener only on the client side
       if (typeof window !== 'undefined') {
          window.addEventListener("keydown", handleKeyDown)
-         return () => window.removeEventListener("keydown
+         return () => window.removeEventListener("keydown")
