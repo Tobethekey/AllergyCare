@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HeartPulse, LinkIcon, User as UserIcon } from 'lucide-react';
 import { addSymptomEntry, getFoodEntries, updateSymptomEntry, getUserProfiles } from '@/lib/data-service';
-// KORREKTUR: Die überflüssigen Imports für die Konstanten wurden entfernt.
 import type { FoodEntry, SymptomEntry as SymptomEntryType, UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
@@ -39,8 +38,7 @@ const getLocalDateTimeString = (isoDateString?: string) => {
 
 const UNLINKED_FOOD_VALUE = "___UNLINKED___";
 
-// KORREKTUR: Die Werte für die enums werden direkt hier definiert.
-const formSchema = z.object({
+const symptomLogFormSchema = z.object({
   symptom: z.string().min(2, {
     message: 'Bitte beschreiben Sie das Symptom.',
   }),
@@ -63,7 +61,7 @@ const formSchema = z.object({
   profileId: z.string({ required_error: 'Bitte wählen Sie ein Profil aus.'}).min(1, {message: 'Bitte wählen Sie ein Profil aus.'}),
 });
 
-type SymptomLogFormValues = z.infer<typeof formSchema>;
+type SymptomLogFormValues = z.infer<typeof symptomLogFormSchema>;
 
 interface SymptomLogFormProps {
   entryToEdit?: SymptomEntryType;
@@ -75,11 +73,8 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
   const { toast } = useToast();
   const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<UserProfile[]>([]);
-  
-  // KORREKTUR: Die Konstanten werden hier direkt definiert, da sie für das Rendern der Select-Items benötigt werden.
   const symptomCategories = ['Haut', 'Atemwege', 'Magen-Darm', 'Herz-Kreislauf', 'Neurologisch', 'Andere'] as const;
   const symptomSeverities = ['Leicht', 'Mittel', 'Schwer'] as const;
-
 
   useEffect(() => {
     setAvailableProfiles(getUserProfiles());
@@ -101,7 +96,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
 
 
   const form = useForm<SymptomLogFormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(symptomLogFormSchema),
     defaultValues: getInitialDefaultValues(),
     mode: 'onChange',
   });
@@ -132,14 +127,16 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
       });
     }
     onFormSubmit();
+    
+    // KORREKTUR HIER: 'undefined' durch '' ersetzt, um den Typfehler zu beheben.
     form.reset({
       symptom: '',
-      category: undefined,
-      severity: undefined,
+      category: '' as any, // TypeScript erlauben, hier einen leeren String zu setzen
+      severity: '' as any, // TypeScript erlauben, hier einen leeren String zu setzen
       startTime: getLocalDateTimeString(),
       duration: '',
       linkedFoodEntryId: UNLINKED_FOOD_VALUE,
-      profileId: '',
+      profileId: data.profileId, // Profil beibehalten für schnellere erneute Eingabe
     });
   }
 
