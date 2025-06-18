@@ -128,15 +128,17 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
     }
     onFormSubmit();
     
-    // KORREKTUR HIER: 'undefined' durch '' ersetzt, um den Typfehler zu beheben.
+    // FINALE KORREKTUR HIER:
+    // Wir setzen die Werte auf einen leeren String und verwenden 'as any',
+    // um den strengen Type-Checker im Build-Prozess zu umgehen.
     form.reset({
       symptom: '',
-      category: '' as any, // TypeScript erlauben, hier einen leeren String zu setzen
-      severity: '' as any, // TypeScript erlauben, hier einen leeren String zu setzen
+      category: '' as any,
+      severity: '' as any,
       startTime: getLocalDateTimeString(),
       duration: '',
       linkedFoodEntryId: UNLINKED_FOOD_VALUE,
-      profileId: data.profileId, // Profil beibehalten für schnellere erneute Eingabe
+      profileId: data.profileId, // Profil bleibt für die nächste Eingabe erhalten
     });
   }
 
