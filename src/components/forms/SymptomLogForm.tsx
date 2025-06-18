@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,8 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HeartPulse, LinkIcon, User as UserIcon } from 'lucide-react';
 import { addSymptomEntry, getFoodEntries, updateSymptomEntry, getUserProfiles } from '@/lib/data-service';
-import type { FoodEntry, SymptomCategory, SymptomSeverity, SymptomEntry as SymptomEntryType, UserProfile } from '@/lib/types';
-import { symptomCategories, symptomSeverities } from '@/lib/types';
+// KORREKTUR: Die überflüssigen Imports für die Konstanten wurden entfernt.
+import type { FoodEntry, SymptomEntry as SymptomEntryType, UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -33,21 +32,25 @@ const getLocalDateTimeString = (isoDateString?: string) => {
     const localDate = new Date(fallbackDate.getTime() - offset);
     return localDate.toISOString().substring(0, 16);
   }
-  const offset = date.getTimezoneOffset() * 60000; 
+  const offset = date.getTimezoneOffset() * 60000;
   const localDate = new Date(date.getTime() - offset);
   return localDate.toISOString().substring(0, 16);
 };
 
 const UNLINKED_FOOD_VALUE = "___UNLINKED___";
 
-const symptomLogFormSchema = z.object({
+// KORREKTUR: Die Werte für die enums werden direkt hier definiert.
+const formSchema = z.object({
   symptom: z.string().min(2, {
     message: 'Bitte beschreiben Sie das Symptom.',
   }),
-  category: z.enum(symptomCategories, {
-    required_error: 'Bitte wählen Sie eine Kategorie aus.',
-  }),
-  severity: z.enum(symptomSeverities, {
+  category: z.enum(
+    ['Haut', 'Atemwege', 'Magen-Darm', 'Herz-Kreislauf', 'Neurologisch', 'Andere'],
+    {
+      required_error: 'Bitte wählen Sie eine Kategorie aus.',
+    }
+  ),
+  severity: z.enum(['Leicht', 'Mittel', 'Schwer'], {
     required_error: 'Bitte wählen Sie den Schweregrad aus.',
   }),
   startTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -60,7 +63,7 @@ const symptomLogFormSchema = z.object({
   profileId: z.string({ required_error: 'Bitte wählen Sie ein Profil aus.'}).min(1, {message: 'Bitte wählen Sie ein Profil aus.'}),
 });
 
-type SymptomLogFormValues = z.infer<typeof symptomLogFormSchema>;
+type SymptomLogFormValues = z.infer<typeof formSchema>;
 
 interface SymptomLogFormProps {
   entryToEdit?: SymptomEntryType;
@@ -72,12 +75,17 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
   const { toast } = useToast();
   const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<UserProfile[]>([]);
+  
+  // KORREKTUR: Die Konstanten werden hier direkt definiert, da sie für das Rendern der Select-Items benötigt werden.
+  const symptomCategories = ['Haut', 'Atemwege', 'Magen-Darm', 'Herz-Kreislauf', 'Neurologisch', 'Andere'] as const;
+  const symptomSeverities = ['Leicht', 'Mittel', 'Schwer'] as const;
+
 
   useEffect(() => {
     setAvailableProfiles(getUserProfiles());
     const allFood = getFoodEntries();
     const sortedFood = allFood.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setRecentFoodEntries(sortedFood.slice(0, 15)); 
+    setRecentFoodEntries(sortedFood.slice(0, 15));
   }, []);
 
 
@@ -93,7 +101,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
 
 
   const form = useForm<SymptomLogFormValues>({
-    resolver: zodResolver(symptomLogFormSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: getInitialDefaultValues(),
     mode: 'onChange',
   });
@@ -106,7 +114,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
   function onSubmit(data: SymptomLogFormValues) {
     const symptomDataPayload = {
       ...data,
-      startTime: new Date(data.startTime).toISOString(), 
+      startTime: new Date(data.startTime).toISOString(),
       linkedFoodEntryId: data.linkedFoodEntryId === UNLINKED_FOOD_VALUE ? undefined : data.linkedFoodEntryId,
     };
 
@@ -123,8 +131,8 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
         description: 'Ihr Symptom wurde erfolgreich dokumentiert.',
       });
     }
-    onFormSubmit(); 
-     form.reset({ 
+    onFormSubmit();
+    form.reset({
       symptom: '',
       category: undefined,
       severity: undefined,
@@ -167,11 +175,11 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
                 </SelectContent>
               </Select>
               {availableProfiles.length === 0 && (
-                 <FormDescription>
-                  Bitte erstellen Sie zuerst Profile unter{' '}
-                  <Link href="/profiles" className="underline hover:text-primary">Profile verwalten</Link>.
-                </FormDescription>
-              )}
+                  <FormDescription>
+                    Bitte erstellen Sie zuerst Profile unter{' '}
+                    <Link href="/profiles" className="underline hover:text-primary">Profile verwalten</Link>.
+                  </FormDescription>
+                )}
               <FormMessage />
             </FormItem>
           )}
