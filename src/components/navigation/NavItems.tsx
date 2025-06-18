@@ -1,72 +1,58 @@
+// src/components/navigation/NavItems.tsx
+
+'use client'; // Wichtig: 'use client' hinzufügen, da wir einen Hook (usePathname) verwenden
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  Users, // Added for Profiles
-  BookCopy,
-  ListPlus,
-  History,
-  DownloadCloud,
-  HelpCircle, 
+  ClipboardList,
+  Stethoscope,
+  BarChart3,
+  GitCompareArrows,
+  Users,
   Settings,
-  PanelLeft,
+  HelpCircle,
 } from 'lucide-react';
-import AppLogo from '@/components/AppLogo';
-import type React from 'react';
 
-interface NavItem {
-  href: string;
-  icon: React.ElementType;
-  label: string;
-  tooltip: string;
-}
-
-const navItems: NavItem[] = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard', tooltip: 'Dashboard' },
-  { href: '/profiles', icon: Users, label: 'Profile', tooltip: 'Profile verwalten' },
-  { href: '/food-log', icon: BookCopy, label: 'Mahlzeiten-Doku', tooltip: 'Mahlzeiten dokumentieren' },
-  { href: '/symptom-log', icon: ListPlus, label: 'Symptom-Doku', tooltip: 'Symptome erfassen' },
-  { href: '/timeline', icon: History, label: 'Historie', tooltip: 'Zeitliche Übersicht' },
-  { href: '/reports', icon: DownloadCloud, label: 'Download', tooltip: 'Berichte herunterladen/exportieren' },
-  { href: '/settings', icon: Settings, label: 'Einstellungen', tooltip: 'App-Einstellungen' },
-  { href: '/help', icon: HelpCircle, label: 'Hilfe', tooltip: 'Hilfe & Informationen'},
+const navLinks = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/food-log', label: 'Essens-Log', icon: ClipboardList },
+  { href: '/symptom-log', label: 'Symptom-Log', icon: Stethoscope },
+  { href: '/timeline', label: 'Zeitstrahl & Analyse', icon: GitCompareArrows },
+  { href: '/reports', label: 'Berichte', icon: BarChart3 },
+  { href: '/profiles', label: 'Profile', icon: Users },
+  { href: '/settings', label: 'Einstellungen', icon: Settings },
+  { href: '/help', label: 'Hilfe', icon: HelpCircle },
 ];
 
-interface NavItemsProps {
-  pathname: string;
-}
+export function NavItems() {
+  const pathname = usePathname();
 
-const NavItems: React.FC<NavItemsProps> = ({ pathname }) => {
   return (
-    <>
-      <SidebarHeader className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <AppLogo />
-          <span className="font-headline text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:hidden">
-            AllergyCare
-          </span>
-        </div>
-        <SidebarTrigger className="md:hidden">
-           <PanelLeft />
-        </SidebarTrigger>
-      </SidebarHeader>
-      <SidebarMenu>
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-            <Link href={item.href}>
-              <SidebarMenuButton
-                isActive={pathname === item.href}
-                tooltip={item.tooltip}
-                aria-label={item.label}
-              >
-                <item.icon />
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-    </>
+    <nav className="flex flex-col gap-1 p-2">
+      {navLinks.map((link) => {
+        const isActive =
+          link.href === '/'
+            ? pathname === '/'
+            : pathname.startsWith(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <link.icon className="h-4 w-4" />
+            {link.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
-};
-
-export default NavItems;
+}
