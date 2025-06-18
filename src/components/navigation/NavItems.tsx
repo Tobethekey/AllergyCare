@@ -10,13 +10,6 @@ import {
   Settings,
   PanelLeft,
 } from 'lucide-react';
-import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  SidebarHeader,
-} from '@/components/ui/sidebar';
 import AppLogo from '@/components/AppLogo';
 import type React from 'react';
 
