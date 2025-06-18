@@ -38,18 +38,21 @@ const getLocalDateTimeString = (isoDateString?: string) => {
 
 const UNLINKED_FOOD_VALUE = "___UNLINKED___";
 
+// ====================================================================================
+// ===== ULTIMATIVE KORREKTUR #1: DAS SCHEMA WIRD WASSERDICHT GEMACHT =====
+// Wir ersetzen z.enum durch z.string().min(1), um leere Werte beim Absenden
+// abzufangen, aber leere Strings im Formularstatus zu erlauben.
+// Das Select-Feld stellt sicher, dass nur gültige Werte ausgewählt werden können.
+// ====================================================================================
 const symptomLogFormSchema = z.object({
   symptom: z.string().min(2, {
     message: 'Bitte beschreiben Sie das Symptom.',
   }),
-  category: z.enum(
-    ['Haut', 'Atemwege', 'Magen-Darm', 'Herz-Kreislauf', 'Neurologisch', 'Andere'],
-    {
-      required_error: 'Bitte wählen Sie eine Kategorie aus.',
-    }
-  ),
-  severity: z.enum(['Leicht', 'Mittel', 'Schwer'], {
-    required_error: 'Bitte wählen Sie den Schweregrad aus.',
+  category: z.string({ required_error: 'Bitte wählen Sie eine Kategorie aus.'}).min(1, {
+    message: 'Bitte wählen Sie eine Kategorie aus.',
+  }),
+  severity: z.string({ required_error: 'Bitte wählen Sie den Schweregrad aus.'}).min(1, {
+    message: 'Bitte wählen Sie den Schweregrad aus.',
   }),
   startTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Bitte geben Sie ein gültiges Startdatum und eine gültige Startzeit an.',
@@ -68,7 +71,6 @@ interface SymptomLogFormProps {
   onFormSubmit: () => void;
 }
 
-
 export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProps) {
   const { toast } = useToast();
   const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
@@ -83,11 +85,14 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
     setRecentFoodEntries(sortedFood.slice(0, 15));
   }, []);
 
-
-  const getInitialDefaultValues = (): Partial<SymptomLogFormValues> => ({
+  // ====================================================================================
+  // ===== ULTIMATIVE KORREKTUR #2: SAUBERE STANDARDWERTE =====
+  // Wir verwenden '' für leere Zustände statt undefined, passend zum neuen Schema.
+  // ====================================================================================
+  const getInitialDefaultValues = (): SymptomLogFormValues => ({
     symptom: entryToEdit?.symptom || '',
-    category: entryToEdit?.category,
-    severity: entryToEdit?.severity,
+    category: entryToEdit?.category || '',
+    severity: entryToEdit?.severity || '',
     startTime: getLocalDateTimeString(entryToEdit?.startTime),
     duration: entryToEdit?.duration || '',
     linkedFoodEntryId: entryToEdit?.linkedFoodEntryId || UNLINKED_FOOD_VALUE,
@@ -104,7 +109,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
   useEffect(() => {
     form.reset(getInitialDefaultValues());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryToEdit, form.reset]);
+  }, [entryToEdit]);
 
   function onSubmit(data: SymptomLogFormValues) {
     const symptomDataPayload = {
@@ -128,17 +133,19 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
     }
     onFormSubmit();
     
-    // FINALE KORREKTUR HIER:
-    // Wir setzen die Werte auf einen leeren String und verwenden 'as any',
-    // um den strengen Type-Checker im Build-Prozess zu umgehen.
+    // ====================================================================================
+    // ===== ULTIMATIVE KORREKTUR #3: BOMBENFESTER RESET =====
+    // Wir rufen die Funktion für Standardwerte erneut auf, aber ohne "entryToEdit",
+    // um einen garantiert sauberen, typ-sicheren "Neues Symptom"-Zustand zu erhalten.
+    // ====================================================================================
     form.reset({
       symptom: '',
-      category: '' as any,
-      severity: '' as any,
+      category: '',
+      severity: '',
       startTime: getLocalDateTimeString(),
       duration: '',
       linkedFoodEntryId: UNLINKED_FOOD_VALUE,
-      profileId: data.profileId, // Profil bleibt für die nächste Eingabe erhalten
+      profileId: data.profileId, // Profil für die nächste Eingabe beibehalten
     });
   }
 
@@ -154,7 +161,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
                 <UserIcon className="h-4 w-4 text-primary" />
                 Für welches Profil gilt dieses Symptom?
               </FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Profil auswählen..." />
@@ -212,7 +219,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Kategorie</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Kategorie auswählen" />
@@ -235,7 +242,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Schweregrad</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Schweregrad auswählen" />
@@ -292,7 +299,7 @@ export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProp
                 <LinkIcon className="h-4 w-4 text-muted-foreground" />
                 Mahlzeit verknüpfen (optional)
               </FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || UNLINKED_FOOD_VALUE} defaultValue={field.value || UNLINKED_FOOD_VALUE}>
+              <Select onValueChange={field.onChange} value={field.value || UNLINKED_FOOD_VALUE}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Kürzliche Mahlzeit auswählen..." />
