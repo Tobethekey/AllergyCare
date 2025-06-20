@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFormattedLogsForAI, getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/data-service';
-import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
+import { getFormattedLogsForAI, getAiSuggestions, saveAiSuggestions, clearAiSuggestions, getFoodEntries, getSymptomEntries } from '@/lib/data-service';
+import { AlertTriangle, CheckCircle2, Wand2, Info } from 'lucide-react';
 import { analyzeWithLlama } from '@/app/actions/llama';
 
 interface AnalysisResult {
@@ -17,12 +17,21 @@ export function AiAnalysis() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [dataStats, setDataStats] = useState<{foodCount: number, symptomCount: number}>({foodCount: 0, symptomCount: 0});
 
   useEffect(() => {
     const storedAnalysis = getAiSuggestions();
     if (storedAnalysis) {
       setAnalysisResult(storedAnalysis);
     }
+    
+    // Lade Datenstatistiken
+    const foodEntries = getFoodEntries();
+    const symptomEntries = getSymptomEntries();
+    setDataStats({
+      foodCount: foodEntries.length,
+      symptomCount: symptomEntries.length
+    });
   }, []);
 
   const handleAnalyze = async () => {
@@ -30,24 +39,37 @@ export function AiAnalysis() {
     setError(null);
     setAnalysisResult(null);
 
-    // --- START DEBUGGING ---
-    // Überprüfe die korrekten localStorage-Schlüssel
+    // --- START ERWEITERTE DEBUGGING ---
     if (typeof window !== 'undefined') {
         const rawFood = window.localStorage.getItem('ALLERGYCARE_FOOD_LOGS');
         const rawSymptoms = window.localStorage.getItem('ALLERGYCARE_SYMPTOM_LOGS');
-        console.log("DEBUGGING: Rohdaten aus dem Local Storage...");
+        console.log("=== DEBUGGING KI-ANALYSE ===");
         console.log("Rohdaten für 'ALLERGYCARE_FOOD_LOGS':", rawFood);
         console.log("Rohdaten für 'ALLERGYCARE_SYMPTOM_LOGS':", rawSymptoms);
+        
+        if (rawFood) {
+          const foodData = JSON.parse(rawFood);
+          console.log("Parsed Food Data:", foodData);
+          console.log("Food Einträge Anzahl:", foodData.length);
+        }
+        
+        if (rawSymptoms) {
+          const symptomData = JSON.parse(rawSymptoms);
+          console.log("Parsed Symptom Data:", symptomData);
+          console.log("Symptom Einträge Anzahl:", symptomData.length);
+        }
     }
     // --- END DEBUGGING ---
 
     const { foodLog, symptomLog } = getFormattedLogsForAI();
     
-    // Debugging: Was gibt die Formatierungsfunktion zurück?
-    console.log("DEBUGGING: Formatierte Daten für die KI:", { foodLog, symptomLog });
+    // Erweiterte Debugging-Ausgaben
+    console.log("=== FORMATIERTE DATEN FÜR KI ===");
+    console.log("Food Log:", foodLog);
+    console.log("Symptom Log:", symptomLog);
 
     if (!foodLog || !symptomLog) {
-      setError("Bitte dokumentieren Sie zuerst einige Mahlzeiten und Symptome, um eine Analyse durchführen zu können.");
+      setError(`Unzureichende Daten für die Analyse. Aktuell: ${dataStats.foodCount} Mahlzeiten, ${dataStats.symptomCount} Symptome. Mindestens 1 Mahlzeit und 1 Symptom erforderlich.`);
       setIsLoading(false);
       return;
     }
@@ -64,17 +86,27 @@ export function AiAnalysis() {
 
       Based on your analysis, identify the most likely food triggers. 
       Please provide your answer in a valid JSON format with two keys: "possibleTriggers" (an array of food items as strings) and "explanation" (a brief summary of your reasoning in German).
+      
+      Focus on temporal correlations between food intake and symptom onset.
+      
       Example: {"possibleTriggers": ["Milch", "Erdnüsse"], "explanation": "Die Symptome traten wiederholt nach dem Verzehr von Milchprodukten und Erdnüssen auf."}
     `;
 
     try {
+      console.log("=== SENDE ANFRAGE AN KI ===");
+      console.log("Prompt:", prompt);
+      
       clearAiSuggestions();
       const result = await analyzeWithLlama(prompt);
+      
+      console.log("=== KI-ANTWORT ===");
+      console.log("Result:", result);
+      
       setAnalysisResult(result);
       saveAiSuggestions(result);
     } catch (e) {
+      console.error("=== KI-ANALYSE FEHLER ===", e);
       setError('Ein Fehler ist bei der Analyse aufgetreten. Der Dienst ist möglicherweise nicht verfügbar.');
-      console.error(e);
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +124,19 @@ export function AiAnalysis() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button onClick={handleAnalyze} disabled={isLoading} className="mb-4 bg-accent hover:bg-accent/90 text-accent-foreground">
+        {/* Datenstatistiken */}
+        <div className="mb-4 p-3 bg-muted rounded-md">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Info className="h-4 w-4" />
+            <span>Verfügbare Daten: {dataStats.foodCount} Mahlzeiten, {dataStats.symptomCount} Symptome</span>
+          </div>
+        </div>
+
+        <Button 
+          onClick={handleAnalyze} 
+          disabled={isLoading || dataStats.foodCount === 0 || dataStats.symptomCount === 0} 
+          className="mb-4 bg-accent hover:bg-accent/90 text-accent-foreground"
+        >
           {isLoading ? 'Analysiere...' : 'Analyse starten'}
         </Button>
 
@@ -119,7 +163,9 @@ export function AiAnalysis() {
             <h3 className="font-headline text-lg text-primary">Analyseergebnis:</h3>
             {analysisResult.possibleTriggers && analysisResult.possibleTriggers.length > 0 ? (
               <div>
-                <p className="font-semibold flex items-center gap-2"><CheckCircle2 className="text-green-500" /> Mögliche Auslöser:</p>
+                <p className="font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="text-green-500" /> Mögliche Auslöser:
+                </p>
                 <ul className="list-disc pl-6 mt-2">
                   {analysisResult.possibleTriggers.map((trigger, index) => (
                     <li key={index} className="font-bold">{trigger}</li>
