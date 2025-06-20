@@ -6,13 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Upload, AlertTriangle } from 'lucide-react';
+import { Download, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
 import {
   getFoodEntries,
   getSymptomEntries,
   getUserProfiles,
   getAppSettings,
-  saveToLocalStorage,
 } from '@/lib/data-service';
 import {
   AlertDialog,
@@ -25,8 +24,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-// Import die Schlüssel aus data-service.ts
+// Keys aus data-service.ts
 const FOOD_LOG_KEY = 'ALLERGYCARE_FOOD_LOGS';
 const SYMPTOM_LOG_KEY = 'ALLERGYCARE_SYMPTOM_LOGS';
 const APP_SETTINGS_KEY = 'ALLERGYCARE_APP_SETTINGS';
@@ -34,6 +41,12 @@ const USER_PROFILES_KEY = 'ALLERGYCARE_USER_PROFILES';
 
 export function DataBackup() {
   const [isImporting, setIsImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [importStats, setImportStats] = useState<{
+    profiles: number;
+    foodEntries: number;
+    symptomEntries: number;
+  } | null>(null);
   const { toast } = useToast();
 
   const exportData = () => {
@@ -64,6 +77,7 @@ export function DataBackup() {
         description: 'Ihre Daten wurden erfolgreich exportiert.',
       });
     } catch (error) {
+      console.error('Export error:', error);
       toast({
         title: 'Fehler beim Export',
         description: 'Die Daten konnten nicht exportiert werden.',
@@ -87,42 +101,33 @@ export function DataBackup() {
         throw new Error('Invalid backup file format');
       }
 
-      // Validiere Datenstrukturen
-      const isValidFoodEntry = data.foodEntries.every((entry: any) => 
-        entry.id && entry.timestamp && entry.foodItems && Array.isArray(entry.profileIds)
-      );
-      
-      const isValidSymptomEntry = data.symptomEntries.every((entry: any) => 
-        entry.id && entry.loggedAt && entry.symptom && entry.category && entry.severity && 
-        entry.startTime && entry.duration && entry.profileId
-      );
-
-      const isValidUserProfile = data.userProfiles.every((profile: any) => 
-        profile.id && profile.name
-      );
-
-      if (!isValidFoodEntry || !isValidSymptomEntry || !isValidUserProfile) {
-        throw new Error('Ungültiges Datenformat in der Backup-Datei');
-      }
-
-      // Store data using the saveToLocalStorage function
-      saveToLocalStorage(FOOD_LOG_KEY, data.foodEntries);
-      saveToLocalStorage(SYMPTOM_LOG_KEY, data.symptomEntries);
-      saveToLocalStorage(USER_PROFILES_KEY, data.userProfiles);
-      
-      if (data.appSettings) {
-        saveToLocalStorage(APP_SETTINGS_KEY, data.appSettings);
-      }
-
-      toast({
-        title: 'Import erfolgreich',
-        description: 'Ihre Daten wurden erfolgreich importiert. Die Seite wird neu geladen.',
+      console.log('Importierte Daten:', {
+        foodEntries: data.foodEntries.length,
+        symptomEntries: data.symptomEntries.length,
+        userProfiles: data.userProfiles.length
       });
 
-      // Reload page to reflect changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Direktes Setzen der Daten im localStorage mit kompletter Überschreibung
+      window.localStorage.setItem(FOOD_LOG_KEY, JSON.stringify(data.foodEntries));
+      window.localStorage.setItem(SYMPTOM_LOG_KEY, JSON.stringify(data.symptomEntries));
+      window.localStorage.setItem(USER_PROFILES_KEY, JSON.stringify(data.userProfiles));
+      
+      if (data.appSettings) {
+        window.localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(data.appSettings));
+      }
+      
+      // Update last activity timestamp
+      window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
+
+      // Setzen der Statistiken für den Erfolgs-Dialog
+      setImportStats({
+        profiles: data.userProfiles.length,
+        foodEntries: data.foodEntries.length,
+        symptomEntries: data.symptomEntries.length,
+      });
+      
+      // Erfolgs-Dialog anzeigen
+      setImportSuccess(true);
 
     } catch (error) {
       console.error('Import error:', error);
@@ -136,6 +141,12 @@ export function DataBackup() {
       // Reset file input
       event.target.value = '';
     }
+  };
+
+  // Seite neu laden, wenn der Erfolgs-Dialog geschlossen wird
+  const handleSuccessDialogClose = () => {
+    setImportSuccess(false);
+    window.location.reload();
   };
 
   return (
@@ -211,6 +222,38 @@ export function DataBackup() {
           </ul>
         </div>
       </CardContent>
+
+      {/* Erfolgs-Dialog nach erfolgreichem Import */}
+      <Dialog open={importSuccess} onOpenChange={setImportSuccess}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              Backup erfolgreich importiert
+            </DialogTitle>
+            <DialogDescription>
+              Ihre Daten wurden erfolgreich wiederhergestellt.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importStats && (
+            <div className="py-4">
+              <p className="mb-2">Folgende Daten wurden importiert:</p>
+              <ul className="space-y-1 text-sm">
+                <li>• {importStats.profiles} Benutzerprofile</li>
+                <li>• {importStats.foodEntries} Nahrungsmitteleinträge</li>
+                <li>• {importStats.symptomEntries} Symptomeinträge</li>
+              </ul>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={handleSuccessDialogClose} className="w-full">
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
