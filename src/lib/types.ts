@@ -45,24 +45,25 @@ export interface FoodEntry {
 export type SymptomCategory = 'Hautreaktionen' | 'Magen-Darm' | 'Atmung' | 'Allgemeinzustand';
 export const symptomCategories: SymptomCategory[] = ['Hautreaktionen', 'Magen-Darm', 'Atmung', 'Allgemeinzustand'];
 
-export type SymptomSeverity = 'leicht' | 'mittel' | 'schwer';
-export const symptomSeverities: SymptomSeverity[] = ['leicht', 'mittel', 'schwer'];
+export type SymptomSeverity = 'Leicht' | 'Mittel' | 'Schwer'; // KORRIGIERT: Großbuchstaben
+export const symptomSeverities: SymptomSeverity[] = ['Leicht', 'Mittel', 'Schwer'];
 
 export interface SymptomEntry {
   id: string;
   loggedAt: string; 
   symptom: string;
   category: SymptomCategory;
-  severity: SymptomSeverity;
+  severity: SymptomSeverity; // Als String, nicht als Zahl
   startTime: string; 
   duration: string; 
   linkedFoodEntryId?: string; 
   profileId: string; // New: Single UserProfile ID
 }
 
+// KORRIGIERT: Gleiche Feldnamen wie in der KI-Analyse
 export interface AiSuggestion {
   possibleTriggers: string[];
-  reasoning: string;
+  explanation: string; // KORRIGIERT: 'reasoning' zu 'explanation'
 }
 
 // Neue Typen für die erweiterten Profildaten
