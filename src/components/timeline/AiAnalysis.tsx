@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFormattedLogsForAI } from '@/lib/data-formatting';
-import { getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/local-storage';
+import { getAiSuggestions, saveAiSuggestions } from '@/lib/data-service';
 import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
 import { analyzeWithLlama } from '@/app/actions/llama';
 
@@ -34,11 +34,11 @@ export function AiAnalysis() {
     // --- START DEBUGGING ---
     // Wir schauen uns an, was wirklich im Local Storage steht
     if (typeof window !== 'undefined') {
-        const rawFood = window.localStorage.getItem('foodLogs');
-        const rawSymptoms = window.localStorage.getItem('symptomLogs');
+        const rawFood = window.localStorage.getItem('ALLERGYCARE_FOOD_LOGS');
+        const rawSymptoms = window.localStorage.getItem('ALLERGYCARE_SYMPTOM_LOGS');
         console.log("DEBUGGING: Rohdaten aus dem Local Storage...");
-        console.log("Rohdaten für 'foodLogs':", rawFood);
-        console.log("Rohdaten für 'symptomLogs':", rawSymptoms);
+        console.log("Rohdaten für 'ALLERGYCARE_FOOD_LOGS':", rawFood);
+        console.log("Rohdaten für 'ALLERGYCARE_SYMPTOM_LOGS':", rawSymptoms);
     }
     // --- END DEBUGGING ---
 
@@ -69,7 +69,6 @@ export function AiAnalysis() {
     `;
 
     try {
-      clearAiSuggestions();
       const result = await analyzeWithLlama(prompt);
       setAnalysisResult(result);
       saveAiSuggestions(result);
