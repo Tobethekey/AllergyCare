@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,8 +16,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Utensils, XCircle, ImageOff, Users } from 'lucide-react';
-import { addFoodEntry, updateFoodEntry, getUserProfiles } from '@/lib/data-service';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Utensils, XCircle, ImageOff, Users, HeartPulse } from 'lucide-react';
+import { addFoodEntry, updateFoodEntry, getUserProfiles, addSymptomEntry } from '@/lib/data-service';
 import type { FoodEntry, UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import type React from 'react';
@@ -26,14 +26,47 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+const getLocalDateTimeString = (isoDateString?: string) => {
+  const date = isoDateString ? new Date(isoDateString) : new Date();
+  if (isNaN(date.getTime())) {
+    const fallbackDate = new Date();
+    const offset = fallbackDate.getTimezoneOffset() * 60000;
+    const localDate = new Date(fallbackDate.getTime() - offset);
+    return localDate.toISOString().substring(0, 16);
+  }
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  return localDate.toISOString().substring(0, 16);
+};
+
 const foodLogFormSchema = z.object({
   foodItems: z.string().min(2, {
     message: 'Bitte geben Sie mindestens ein Nahrungsmittel an.',
   }),
   photoFile: z.instanceof(File).optional().nullable(),
-  profileIds: z.array(z.string()).min(1, { // Must select at least one profile
+  profileIds: z.array(z.string()).min(1, {
     message: 'Bitte wählen Sie mindestens ein Profil aus.',
   }),
+  logSymptom: z.boolean().default(false),
+  symptom: z.string().optional(),
+  category: z.string().optional(),
+  severity: z.string().optional(),
+  startTime: z.string().optional(),
+  duration: z.string().optional(),
+}).refine(data => {
+    if (data.logSymptom) {
+        return (
+            data.symptom && data.symptom.length >= 2 &&
+            data.category && data.category.length >= 1 &&
+            data.severity && data.severity.length >= 1 &&
+            data.startTime &&
+            data.duration && data.duration.length >= 1
+        );
+    }
+    return true;
+}, {
+    message: 'Wenn Sie ein Symptom protokollieren, müssen alle Symptomfelder ausgefüllt sein.',
+    path: ['logSymptom'],
 });
 
 type FoodLogFormValues = z.infer<typeof foodLogFormSchema>;
@@ -48,6 +81,7 @@ export function FoodLogForm({ entryToEdit, onFormSubmit }: FoodLogFormProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null | undefined>(null);
   const [availableProfiles, setAvailableProfiles] = useState<UserProfile[]>([]);
+  const [logSymptom, setLogSymptom] = useState(false);
 
   useEffect(() => {
     setAvailableProfiles(getUserProfiles());
@@ -57,6 +91,12 @@ export function FoodLogForm({ entryToEdit, onFormSubmit }: FoodLogFormProps) {
     foodItems: entryToEdit?.foodItems || '',
     photoFile: undefined,
     profileIds: entryToEdit?.profileIds || [],
+    logSymptom: false,
+    symptom: '',
+    category: '',
+    severity: '',
+    startTime: getLocalDateTimeString(),
+    duration: '',
   };
 
   const form = useForm<FoodLogFormValues>({
@@ -97,115 +137,62 @@ export function FoodLogForm({ entryToEdit, onFormSubmit }: FoodLogFormProps) {
       setPhotoPreview(existingPhotoUrl || null); 
     }
   };
-
-  const handleRemovePhoto = () => {
-    form.setValue('photoFile', null, { shouldValidate: true }); 
+  
+  const removePhoto = () => {
+    form.setValue('photoFile', null, { shouldValidate: true });
     setPhotoPreview(null);
+    setExistingPhotoUrl(null);
   };
 
   async function onSubmit(data: FoodLogFormValues) {
-    let finalPhotoDataUrl: string | undefined = existingPhotoUrl || undefined;
+    try {
+      const foodEntryData = {
+        foodItems: data.foodItems,
+        photoFile: data.photoFile,
+        profileIds: data.profileIds,
+      };
 
-    if (data.photoFile === null) { 
-      finalPhotoDataUrl = undefined;
-    } else if (data.photoFile) { 
-      finalPhotoDataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(data.photoFile as File);
+      const newOrUpdatedFoodEntry = entryToEdit
+        ? await updateFoodEntry(entryToEdit.id, foodEntryData)
+        : await addFoodEntry(foodEntryData);
+
+      if (data.logSymptom && data.symptom) {
+        const symptomData = {
+            symptom: data.symptom,
+            category: data.category!,
+            severity: data.severity!,
+            startTime: data.startTime!,
+            duration: data.duration!,
+            linkedFoodEntryId: newOrUpdatedFoodEntry.id,
+        };
+
+        for (const profileId of data.profileIds) {
+            await addSymptomEntry({ ...symptomData, profileId });
+        }
+      }
+
+      toast({
+        title: 'Erfolgreich gespeichert',
+        description: `Die Mahlzeit${data.logSymptom ? ' und das Symptom wurden' : ' wurde'} erfolgreich protokolliert.`,
+        variant: 'success',
+      });
+      form.reset(defaultValues);
+      setPhotoPreview(null);
+      setExistingPhotoUrl(null);
+      setLogSymptom(false);
+      onFormSubmit();
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Beim Speichern des Eintrags ist ein Fehler aufgetreten.',
+        variant: 'destructive',
       });
     }
-    
-    const foodDataPayload = { 
-        foodItems: data.foodItems, 
-        photo: finalPhotoDataUrl, 
-        profileIds: data.profileIds 
-    };
-
-    if (entryToEdit) {
-      updateFoodEntry(entryToEdit.id, foodDataPayload);
-      toast({
-        title: 'Mahlzeit aktualisiert',
-        description: 'Ihre Mahlzeit wurde erfolgreich geändert.',
-      });
-    } else {
-      addFoodEntry(foodDataPayload);
-      toast({
-        title: 'Mahlzeit gespeichert',
-        description: 'Ihre Mahlzeit wurde erfolgreich dokumentiert.',
-      });
-    }
-    onFormSubmit(); 
-    form.reset(defaultValues);
-    setPhotoPreview(null);
-    setExistingPhotoUrl(null);
   }
-
-  const currentPhotoToDisplay = form.getValues('photoFile') === null ? null : photoPreview;
-
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="profileIds"
-          render={() => (
-            <FormItem>
-              <div className="mb-4">
-                <FormLabel className="text-base flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Für welche Profile gilt diese Mahlzeit?
-                </FormLabel>
-                <FormDescription>
-                  Wählen Sie alle zutreffenden Profile aus.
-                </FormDescription>
-              </div>
-              {availableProfiles.length === 0 && (
-                <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                  Noch keine Profile angelegt. Bitte erstellen Sie zuerst Profile unter{' '}
-                  <Link href="/profiles" className="underline hover:text-primary">Profile verwalten</Link>.
-                </div>
-              )}
-              {availableProfiles.map((profile) => (
-                <FormField
-                  key={profile.id}
-                  control={form.control}
-                  name="profileIds"
-                  render={({ field }) => {
-                    return (
-                      <FormItem
-                        key={profile.id}
-                        className="flex flex-row items-center space-x-3 space-y-0"
-                      >
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(profile.id)}
-                            onCheckedChange={(checked) => {
-                              return checked
-                                ? field.onChange([...(field.value || []), profile.id])
-                                : field.onChange(
-                                    (field.value || []).filter(
-                                      (value) => value !== profile.id
-                                    )
-                                  );
-                            }}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal">
-                          {profile.name}
-                        </FormLabel>
-                      </FormItem>
-                    );
-                  }}
-                />
-              ))}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-
         <FormField
           control={form.control}
           name="foodItems"
@@ -213,66 +200,194 @@ export function FoodLogForm({ entryToEdit, onFormSubmit }: FoodLogFormProps) {
             <FormItem>
               <FormLabel>Nahrungsmittel</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="z.B. Apfel, Banane, Hühnchen mit Reis"
-                  className="resize-none"
-                  {...field}
-                />
+                <Textarea placeholder="Was haben Sie gegessen oder getrunken?" {...field} />
               </FormControl>
               <FormDescription>
-                Listen Sie alle konsumierten Nahrungsmittel auf.
+                Listen Sie alle konsumierten Nahrungsmittel und Getränke auf.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
+        
         <FormField
           control={form.control}
-          name="photoFile"
-          render={() => (
+          name="profileIds"
+          render={({ field }) => (
             <FormItem>
-              <FormLabel>Foto der Mahlzeit (optional)</FormLabel>
-              <FormControl>
-                <Input type="file" accept="image/*" onChange={handlePhotoChange} />
-              </FormControl>
+              <FormLabel>Profile</FormLabel>
+              <div className="flex flex-wrap gap-4">
+                {availableProfiles.map((profile) => (
+                  <FormField
+                    key={profile.id}
+                    control={form.control}
+                    name="profileIds"
+                    render={({ field }) => {
+                      return (
+                        <FormItem
+                          key={profile.id}
+                          className="flex flex-row items-start space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(profile.id)}
+                              onCheckedChange={(checked) => {
+                                return checked
+                                  ? field.onChange([...(field.value || []), profile.id])
+                                  : field.onChange(
+                                      field.value?.filter(
+                                        (value) => value !== profile.id
+                                      )
+                                    )
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            {profile.name}
+                          </FormLabel>
+                        </FormItem>
+                      )
+                    }}
+                  />
+                ))}
+              </div>
               <FormDescription>
-                Machen Sie ein Foto Ihrer Mahlzeit für eine bessere Dokumentation.
+                Wählen Sie die Profile aus, für die dieser Eintrag gilt.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {currentPhotoToDisplay && (
-          <div className="mt-4">
-            <FormLabel>Fotovorschau</FormLabel>
-            <div className="mt-2 relative w-full max-w-sm h-64 rounded-md overflow-hidden border border-input">
-              <Image src={currentPhotoToDisplay} alt="Fotovorschau" layout="fill" objectFit="cover" data-ai-hint="food meal"/>
-               <Button 
-                  type="button" 
-                  variant="destructive" 
-                  size="icon" 
-                  className="absolute top-2 right-2 z-10 opacity-75 hover:opacity-100"
-                  onClick={handleRemovePhoto}
-                  aria-label="Foto entfernen"
-                >
-                  <XCircle className="h-5 w-5" />
-                </Button>
-            </div>
-          </div>
-        )}
-         {entryToEdit && existingPhotoUrl && !currentPhotoToDisplay && form.getValues('photoFile') !== null && (
-           <p className="text-sm text-muted-foreground flex items-center gap-1">
-             <ImageOff className="h-4 w-4" /> Bisheriges Foto wurde entfernt. Speichern, um die Änderung zu übernehmen.
-           </p>
-         )}
         
-        <div className="flex justify-end">
-          <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={availableProfiles.length === 0 && !entryToEdit}>
-            <Utensils className="mr-2 h-4 w-4" /> {entryToEdit ? 'Änderungen speichern' : 'Mahlzeit speichern'}
-          </Button>
-        </div>
+        <FormField
+          control={form.control}
+          name="logSymptom"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                      const isChecked = Boolean(checked);
+                      field.onChange(isChecked);
+                      setLogSymptom(isChecked);
+                      if(isChecked) {
+                        form.setValue('startTime', getLocalDateTimeString());
+                      }
+                  }}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Symptom gleichzeitig erfassen
+                </FormLabel>
+                <FormDescription>
+                  Wählen Sie diese Option, um direkt mit der Mahlzeit ein Symptom zu protokollieren.
+                </FormDescription>
+              </div>
+            </FormItem>
+          )}
+        />
+
+        {logSymptom && (
+            <div className="space-y-8 rounded-md border p-4 shadow-inner">
+                <FormField
+                    control={form.control}
+                    name="symptom"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Symptom</FormLabel>
+                            <FormControl>
+                                <Input placeholder="z.B. Bauchschmerzen, Hautausschlag" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Kategorie</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Wählen Sie eine Kategorie" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Magen-Darm">Magen-Darm</SelectItem>
+                                        <SelectItem value="Haut">Haut</SelectItem>
+                                        <SelectItem value="Atemwege">Atemwege</SelectItem>
+                                        <SelectItem value="Herz-Kreislauf">Herz-Kreislauf</SelectItem>
+                                        <SelectItem value="Allgemein">Allgemein</SelectItem>
+                                        <SelectItem value="Andere">Andere</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="severity"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Schweregrad</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Wählen Sie den Schweregrad" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Leicht">Leicht</SelectItem>
+                                        <SelectItem value="Mittel">Mittel</SelectItem>
+                                        <SelectItem value="Schwer">Schwer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FormField
+                        control={form.control}
+                        name="startTime"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Startzeitpunkt</FormLabel>
+                                <FormControl>
+                                    <Input type="datetime-local" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="duration"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Dauer</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="z.B. 2 Stunden, 30 Minuten" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            </div>
+        )}
+
+        <Button type="submit" className="w-full md:w-auto">
+          <Utensils className="mr-2 h-4 w-4" />
+          {entryToEdit ? 'Änderungen speichern' : 'Eintrag speichern'}
+        </Button>
       </form>
     </Form>
   );
