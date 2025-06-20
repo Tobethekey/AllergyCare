@@ -157,7 +157,7 @@ export const deleteSymptomEntry = (id: string): void => {
 export const getAppSettings = (): AppSettings => getFromLocalStorage(APP_SETTINGS_KEY, { notes: '', name: '' });
 export const saveAppSettings = (settings: AppSettings): void => saveToLocalStorage(APP_SETTINGS_KEY, settings);
 
-// AI Suggestions
+// AI Suggestions - ERWEITERT FÜR KOMPATIBILITÄT
 export const getAiSuggestions = (): AiSuggestion | null => getFromLocalStorage(AI_SUGGESTIONS_KEY, null);
 export const saveAiSuggestions = (suggestions: AiSuggestion): void => saveToLocalStorage(AI_SUGGESTIONS_KEY, suggestions);
 export const clearAiSuggestions = (): void => {
@@ -248,30 +248,47 @@ export const exportDataToCsv = () => {
   document.body.removeChild(link);
 };
 
-// Data for AI Analysis
-export const getFormattedLogsForAI = (): { foodLog: string, symptomLog: string } => {
-  const foodEntries = getFoodEntries().sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  const symptomEntries = getSymptomEntries().sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+// KORRIGIERTE Funktion für AI Analysis - für KI-kompatible Formatierung
+export const getFormattedLogsForAI = (): { foodLog: string | null, symptomLog: string | null } => {
+  const foodEntries = getFoodEntries();
+  const symptomEntries = getSymptomEntries();
+
+  // Überprüfe, ob überhaupt Daten vorhanden sind
+  if (foodEntries.length === 0 && symptomEntries.length === 0) {
+    return { foodLog: null, symptomLog: null };
+  }
+
   const userProfiles = getUserProfiles();
   const profileMap = new Map(userProfiles.map(p => [p.id, p.name]));
 
-  const foodLog = foodEntries.map(entry => {
-    const profileNames = entry.profileIds.map(id => profileMap.get(id) || 'Unbekanntes Profil').join(', ');
-    return `Datum: ${new Date(entry.timestamp).toLocaleString('de-DE')}, Lebensmittel: ${entry.foodItems}, Profile: ${profileNames || 'Kein Profil zugewiesen'}`;
-  }).join('\n');
+  // Formatiere Food Log für die KI
+  const foodLogString = foodEntries.length > 0 
+    ? foodEntries
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .map(entry => {
+          const profileNames = entry.profileIds.map(id => profileMap.get(id) || 'Unbekanntes Profil').join(', ');
+          return `- Am ${new Date(entry.timestamp).toLocaleString('de-DE')}, gegessen: ${entry.foodItems} (Profile: ${profileNames || 'Kein Profil'})`;
+        }).join('\n')
+    : null;
 
-  const symptomLog = symptomEntries.map(entry => {
-    const profileName = profileMap.get(entry.profileId) || 'Unbekanntes Profil';
-    let logEntry = `Datum: ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity}, Dauer: ${entry.duration}, Profil: ${profileName}`;
-    if (entry.linkedFoodEntryId) {
-      const linkedFood = getFoodEntryById(entry.linkedFoodEntryId);
-      if (linkedFood) {
-        const linkedFoodProfileNames = linkedFood.profileIds.map(id => profileMap.get(id) || 'Unbekanntes Profil').join(', ');
-        logEntry += `, Möglicherweise verknüpft mit Mahlzeit: ${linkedFood.foodItems} (protokolliert am ${new Date(linkedFood.timestamp).toLocaleString('de-DE')} von ${linkedFoodProfileNames})`;
-      }
-    }
-    return logEntry;
-  }).join('\n');
+  // Formatiere Symptom Log für die KI
+  const symptomLogString = symptomEntries.length > 0 
+    ? symptomEntries
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .map(entry => {
+          const profileName = profileMap.get(entry.profileId) || 'Unbekanntes Profil';
+          let logEntry = `- Am ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity}/5, Dauer: ${entry.duration} Min, Profil: ${profileName}`;
+          
+          if (entry.linkedFoodEntryId) {
+            const linkedFood = getFoodEntryById(entry.linkedFoodEntryId);
+            if (linkedFood) {
+              const linkedFoodProfileNames = linkedFood.profileIds.map(id => profileMap.get(id) || 'Unbekanntes Profil').join(', ');
+              logEntry += ` (möglicherweise verknüpft mit: ${linkedFood.foodItems} vom ${new Date(linkedFood.timestamp).toLocaleString('de-DE')})`;
+            }
+          }
+          return logEntry;
+        }).join('\n')
+    : null;
   
-  return { foodLog, symptomLog };
+  return { foodLog: foodLogString, symptomLog: symptomLogString };
 };
