@@ -1,0 +1,220 @@
+/* AllergyCare Application Styles - Integration mit bestehendem Design-System */
+
+/* Ergänzende Styles die das Tailwind/Shadcn Design erweitern */
+
+/* Utility-Klassen für AllergyCare-spezifische Elemente */
+.allergy-severity-badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors;
+}
+
+.allergy-severity-low {
+  @apply bg-green-100 text-green-800 border border-green-200;
+}
+
+.allergy-severity-medium {
+  @apply bg-yellow-100 text-yellow-800 border border-yellow-200;
+}
+
+.allergy-severity-high {
+  @apply bg-red-100 text-red-800 border border-red-200;
+}
+
+/* Timeline-spezifische Styles */
+.timeline-item {
+  @apply relative flex items-start space-x-3 p-4 rounded-lg border bg-card;
+}
+
+.timeline-connector {
+  @apply absolute left-4 top-12 bottom-0 w-0.5 bg-border;
+}
+
+.timeline-icon {
+  @apply flex-shrink-0 w-8 h-8 rounded-full border-2 border-primary bg-background flex items-center justify-center;
+}
+
+/* Food Entry Card Styles */
+.food-entry-card {
+  @apply bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-l-green-400;
+}
+
+/* Symptom Entry Card Styles */
+.symptom-entry-card {
+  @apply bg-gradient-to-br from-red-50 to-pink-50 border-l-4 border-l-red-400;
+}
+
+/* AI Analysis Styles */
+.ai-suggestion-card {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-lg;
+}
+
+.ai-insight {
+  @apply bg-purple-50 border border-purple-200 text-purple-800 p-3 rounded-md text-sm;
+}
+
+/* Chart Container Anpassungen */
+.chart-container {
+  @apply w-full aspect-video flex justify-center items-center bg-card rounded-lg border p-4;
+}
+
+/* Mobile Navigation Improvements */
+.mobile-nav-overlay {
+  @apply fixed inset-0 z-50 bg-background/80 backdrop-blur-sm;
+}
+
+.mobile-nav-content {
+  @apply fixed left-0 top-0 z-50 h-full w-64 border-r bg-background shadow-lg;
+}
+
+/* Profile Avatar Styles */
+.profile-avatar {
+  @apply w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-headline font-medium;
+}
+
+.profile-avatar-sm {
+  @apply w-8 h-8 text-sm;
+}
+
+.profile-avatar-lg {
+  @apply w-16 h-16 text-lg;
+}
+
+/* Report Styles */
+.report-header {
+  @apply border-b pb-4 mb-6;
+}
+
+.report-section {
+  @apply mb-8 break-inside-avoid;
+}
+
+.report-item {
+  @apply flex justify-between items-start p-3 bg-muted/30 rounded border-l-2 border-l-primary mb-2;
+}
+
+/* Loading Spinner mit Theme-Farben */
+.loading-spinner {
+  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto;
+}
+
+/* Responsive Grid für Stats */
+.stats-grid {
+  @apply grid gap-4 md:grid-cols-2 lg:grid-cols-4;
+}
+
+/* Custom Focus States */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+}
+
+/* Chat Message Styles */
+.chat-message-user {
+  @apply bg-primary text-primary-foreground p-3 rounded-lg max-w-[80%] ml-auto;
+}
+
+.chat-message-ai {
+  @apply bg-muted p-3 rounded-lg max-w-[80%] mr-auto;
+}
+
+/* Form Validation States */
+.form-error {
+  @apply border-destructive focus:ring-destructive text-destructive;
+}
+
+.form-success {
+  @apply border-green-500 focus:ring-green-500;
+}
+
+/* Breadcrumb Styles */
+.breadcrumb-separator {
+  @apply text-muted-foreground mx-2;
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Hover Effects */
+.hover-lift {
+  @apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200;
+}
+
+/* Print Styles für Reports */
+@media print {
+  .no-print {
+    @apply hidden;
+  }
+  
+  .print-break-after {
+    break-after: page;
+  }
+  
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
+
+/* Dark Mode Adjustments */
+@media (prefers-color-scheme: dark) {
+  .food-entry-card {
+    @apply from-green-950 to-emerald-950 border-l-green-400;
+  }
+  
+  .symptom-entry-card {
+    @apply from-red-950 to-pink-950 border-l-red-400;
+  }
+  
+  .ai-suggestion-card {
+    @apply from-blue-950 to-indigo-950 border-blue-800;
+  }
+  
+  .ai-insight {
+    @apply bg-purple-950 border-purple-800 text-purple-200;
+  }
+}
+
+/* Animation Utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Accessibility Improvements */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .allergy-severity-badge {
+    @apply border-2;
+  }
+  
+  .timeline-icon {
+    @apply border-4;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .smooth-transition,
+  .hover-lift,
+  .animate-fade-in,
+  .animate-slide-in {
+    @apply transition-none;
+    animation: none;
+  }
+}
