@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import {
   getSymptomEntries,
   getUserProfiles,
   getAppSettings,
+  saveToLocalStorage,
 } from '@/lib/data-service';
 import {
   AlertDialog,
@@ -32,32 +33,53 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import type { FoodEntry, SymptomEntry, UserProfile } from '@/lib/types';
 
-// Keys aus data-service.ts
+// Importiere die Schlüssel aus data-service.ts oder exportiere sie dort
 const FOOD_LOG_KEY = 'ALLERGYCARE_FOOD_LOGS';
 const SYMPTOM_LOG_KEY = 'ALLERGYCARE_SYMPTOM_LOGS';
 const APP_SETTINGS_KEY = 'ALLERGYCARE_APP_SETTINGS';
 const USER_PROFILES_KEY = 'ALLERGYCARE_USER_PROFILES';
+const LAST_ACTIVITY_KEY = 'ALLERGYCARE_LAST_ACTIVITY';
+
+// Aktuelle Version der App-Datenstruktur
+const CURRENT_APP_VERSION = '1.0';
+
+// Interface für Import-Daten
+interface BackupData {
+  foodEntries: FoodEntry[];
+  symptomEntries: SymptomEntry[];
+  userProfiles: UserProfile[];
+  appSettings?: {
+    name?: string;
+    notes?: string;
+  };
+  exportDate: string;
+  version: string;
+}
 
 export function DataBackup() {
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [importStats, setImportStats] = useState<{
     profiles: number;
     foodEntries: number;
     symptomEntries: number;
+    version: string;
+    exportDate: string;
   } | null>(null);
   const { toast } = useToast();
 
   const exportData = () => {
     try {
-      const data = {
+      const data: BackupData = {
         foodEntries: getFoodEntries(),
         symptomEntries: getSymptomEntries(),
         userProfiles: getUserProfiles(),
         appSettings: getAppSettings(),
         exportDate: new Date().toISOString(),
-        version: '1.0'
+        version: CURRENT_APP_VERSION
       };
 
       const dataStr = JSON.stringify(data, null, 2);
@@ -86,28 +108,91 @@ export function DataBackup() {
     }
   };
 
+  // Validiert ein einzelnes Datenfeld mit einer bestimmten Struktur
+  const validateDataStructure = (data: BackupData): boolean => {
+    // Überprüfe, ob alle erforderlichen Hauptfelder existieren
+    if (!data.foodEntries || !data.symptomEntries || !data.userProfiles) {
+      console.error('Invalid structure: Missing required fields');
+      return false;
+    }
+
+    // Überprüfe die Version (optional könnte hier später eine Migrationslogik implementiert werden)
+    if (data.version !== CURRENT_APP_VERSION) {
+      console.warn(`Version mismatch: Backup version ${data.version}, current app version ${CURRENT_APP_VERSION}`);
+      // Entscheidung: Trotzdem weiter importieren, aber mit Warnung
+    }
+
+    try {
+      // Überprüfe die Struktur von foodEntries
+      const validFoodEntries = data.foodEntries.every(entry => 
+        typeof entry.id === 'string' &&
+        typeof entry.timestamp === 'string' &&
+        typeof entry.foodItems === 'string' &&
+        Array.isArray(entry.profileIds)
+      );
+      if (!validFoodEntries) {
+        console.error('Invalid food entries structure');
+        return false;
+      }
+
+      // Überprüfe die Struktur von symptomEntries
+      const validSymptomEntries = data.symptomEntries.every(entry => 
+        typeof entry.id === 'string' &&
+        typeof entry.loggedAt === 'string' &&
+        typeof entry.symptom === 'string' &&
+        typeof entry.category === 'string' &&
+        typeof entry.severity === 'string' &&
+        typeof entry.startTime === 'string' &&
+        typeof entry.duration === 'string' &&
+        typeof entry.profileId === 'string'
+      );
+      if (!validSymptomEntries) {
+        console.error('Invalid symptom entries structure');
+        return false;
+      }
+
+      // Überprüfe die Struktur von userProfiles
+      const validUserProfiles = data.userProfiles.every(profile => 
+        typeof profile.id === 'string' &&
+        typeof profile.name === 'string'
+      );
+      if (!validUserProfiles) {
+        console.error('Invalid user profiles structure');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error validating data structure:', error);
+      return false;
+    }
+  };
+
   const importData = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
+    setShowImportDialog(false); // Schließe den Import-Dialog
     
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
+      const data = JSON.parse(text) as BackupData;
 
-      // Validate data structure
-      if (!data.foodEntries || !data.symptomEntries || !data.userProfiles) {
-        throw new Error('Invalid backup file format');
+      // Validiere die gesamte Datenstruktur
+      if (!validateDataStructure(data)) {
+        throw new Error('Ungültiges Backup-Dateiformat');
       }
 
       console.log('Importierte Daten:', {
         foodEntries: data.foodEntries.length,
         symptomEntries: data.symptomEntries.length,
-        userProfiles: data.userProfiles.length
+        userProfiles: data.userProfiles.length,
+        version: data.version,
+        exportDate: data.exportDate
       });
 
-      // Direktes Setzen der Daten im localStorage mit kompletter Überschreibung
+      // Speichere die Daten im localStorage
       window.localStorage.setItem(FOOD_LOG_KEY, JSON.stringify(data.foodEntries));
       window.localStorage.setItem(SYMPTOM_LOG_KEY, JSON.stringify(data.symptomEntries));
       window.localStorage.setItem(USER_PROFILES_KEY, JSON.stringify(data.userProfiles));
@@ -116,29 +201,39 @@ export function DataBackup() {
         window.localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(data.appSettings));
       }
       
-      // Update last activity timestamp
-      window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
+      // Aktualisiere den Aktivitätszeitstempel
+      window.localStorage.setItem(LAST_ACTIVITY_KEY, new Date().toISOString());
 
-      // Setzen der Statistiken für den Erfolgs-Dialog
+      // Setze die Statistiken für den Erfolgs-Dialog
       setImportStats({
         profiles: data.userProfiles.length,
         foodEntries: data.foodEntries.length,
         symptomEntries: data.symptomEntries.length,
+        version: data.version,
+        exportDate: new Date(data.exportDate).toLocaleDateString('de-DE', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
       });
       
-      // Erfolgs-Dialog anzeigen
+      // Zeige den Erfolgs-Dialog an
       setImportSuccess(true);
 
     } catch (error) {
       console.error('Import error:', error);
       toast({
         title: 'Fehler beim Import',
-        description: 'Die Backup-Datei konnte nicht gelesen werden. Überprüfen Sie das Dateiformat.',
+        description: error instanceof Error ? 
+          `Die Backup-Datei konnte nicht gelesen werden: ${error.message}` : 
+          'Die Backup-Datei konnte nicht gelesen werden. Überprüfen Sie das Dateiformat.',
         variant: 'destructive',
       });
     } finally {
       setIsImporting(false);
-      // Reset file input
+      // Zurücksetzen des Datei-Inputs
       event.target.value = '';
     }
   };
@@ -148,6 +243,16 @@ export function DataBackup() {
     setImportSuccess(false);
     window.location.reload();
   };
+
+  // Dialog-State synchron halten
+  useEffect(() => {
+    if (!importSuccess) {
+      // Wenn der Dialog geschlossen wird (aus irgendeinem Grund), Seite neu laden
+      if (importStats !== null) {
+        window.location.reload();
+      }
+    }
+  }, [importSuccess, importStats]);
 
   return (
     <Card className="shadow-lg">
@@ -173,7 +278,7 @@ export function DataBackup() {
               Stellen Sie Ihre Daten aus einer Backup-Datei wieder her.
             </p>
             
-            <AlertDialog>
+            <AlertDialog open={showImportDialog} onOpenChange={setShowImportDialog}>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="w-full">
                   <Upload className="mr-2 h-4 w-4" />
@@ -224,7 +329,10 @@ export function DataBackup() {
       </CardContent>
 
       {/* Erfolgs-Dialog nach erfolgreichem Import */}
-      <Dialog open={importSuccess} onOpenChange={setImportSuccess}>
+      <Dialog open={importSuccess} onOpenChange={(open) => {
+        setImportSuccess(open);
+        if (!open) window.location.reload();
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -243,6 +351,12 @@ export function DataBackup() {
                 <li>• {importStats.profiles} Benutzerprofile</li>
                 <li>• {importStats.foodEntries} Nahrungsmitteleinträge</li>
                 <li>• {importStats.symptomEntries} Symptomeinträge</li>
+                {importStats.version && (
+                  <li>• Backup-Version: {importStats.version}</li>
+                )}
+                {importStats.exportDate && (
+                  <li>• Erstellungsdatum: {importStats.exportDate}</li>
+                )}
               </ul>
             </div>
           )}
