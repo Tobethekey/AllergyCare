@@ -22,81 +22,143 @@ export async function analyzeWithLlama(prompt: string) {
     };
   }
 
-  // KORRIGIERTE API-URLs für verschiedene Anbieter
-  const apiProviders = [
-    // OpenAI-kompatible API (z.B. Together AI, Replicate, etc.)
-    {
-      url: "https://api.together.xyz/v1/chat/completions",
-      model: "meta-llama/Llama-2-7b-chat-hf"
-    },
-    // Fallback zu OpenAI (falls verfügbar)
-    {
-      url: "https://api.openai.com/v1/chat/completions", 
-      model: "gpt-3.5-turbo"
-    }
-  ];
+  // OpenRouter API-Konfiguration
+  const openRouterConfig = {
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    models: [
+      "meta-llama/llama-3.1-8b-instruct:free", // Kostenlos verfügbar
+      "meta-llama/llama-3.1-70b-instruct", // Bessere Qualität
+      "meta-llama/llama-3-8b-instruct", // Fallback
+    ]
+  };
 
-  for (const provider of apiProviders) {
+  // Erweiterte Prompt-Struktur für bessere JSON-Antworten
+  const systemPrompt = `Du bist ein medizinischer AI-Assistent, der Allergie-Tagebuchdaten analysiert. 
+Antworte AUSSCHLIESSLICH im folgenden JSON-Format:
+{
+  "possibleTriggers": ["Lebensmittel1", "Lebensmittel2"],
+  "explanation": "Detaillierte Erklärung basierend auf den Daten..."
+}`;
+
+  const fullPrompt = `${systemPrompt}\n\nAnalysiere die folgenden Daten:\n${prompt}`;
+
+  // Versuche verschiedene Modelle in der Reihenfolge
+  for (const model of openRouterConfig.models) {
     try {
-      const response = await fetch(provider.url, {
+      console.log(`Versuche OpenRouter mit Modell: ${model}`);
+      
+      const response = await fetch(openRouterConfig.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://allergycareapp.netlify.app", // Ihre App-URL
+          "X-Title": "AllergyCare App", // App-Name für OpenRouter
         },
         body: JSON.stringify({
-          model: provider.model,
-          messages: [{ 
-            role: "user", 
-            content: prompt 
-          }],
-          max_tokens: 500,
-          temperature: 0.7,
+          model: model,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user", 
+              content: prompt
+            }
+          ],
+          max_tokens: 800,
+          temperature: 0.3, // Niedrigere Temperatur für konsistentere Antworten
+          response_format: { type: "json_object" }, // Erzwingt JSON-Antwort
         }),
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`API Error (${provider.url}):`, errorBody);
-        continue; // Versuche nächsten Provider
+        console.error(`OpenRouter API Error (${model}):`, response.status, errorBody);
+        continue; // Versuche nächstes Modell
       }
 
       const data = await response.json();
+      console.log("OpenRouter Response:", data);
+
+      if (!data.choices || !data.choices[0]) {
+        console.error("Unerwartete API-Antwort-Struktur:", data);
+        continue;
+      }
+
       const resultText = data.choices[0].message.content;
+      console.log("AI Response Text:", resultText);
 
       // Versuche JSON zu parsen
       try {
         const parsedJson = JSON.parse(resultText);
         const validatedResult = analysisResultSchema.parse(parsedJson);
+        console.log("Erfolgreich validierte Antwort:", validatedResult);
         return validatedResult;
       } catch (parseError) {
-        // Wenn JSON-Parsing fehlschlägt, extrahiere die Informationen manuell
         console.warn("JSON parsing failed, extracting information manually:", parseError);
+        console.log("Roher Text:", resultText);
         
+        // Fallback: Extrahiere Informationen manuell
         return {
           possibleTriggers: extractTriggers(resultText),
-          explanation: resultText.substring(0, 300) + "..." // Beschränke die Länge
+          explanation: cleanExplanation(resultText)
         };
       }
 
     } catch (error) {
-      console.error(`Error with provider ${provider.url}:`, error);
-      continue; // Versuche nächsten Provider
+      console.error(`Error with OpenRouter model ${model}:`, error);
+      continue; // Versuche nächstes Modell
     }
   }
 
-  // Fallback wenn alle Provider fehlschlagen
-  throw new Error("Failed to get analysis from AI service. All providers failed.");
+  // Fallback wenn alle Modelle fehlschlagen
+  console.error("Alle OpenRouter-Modelle fehlgeschlagen");
+  throw new Error("Failed to get analysis from OpenRouter AI service. All models failed.");
 }
 
 // Hilfsfunktion zum Extrahieren von Auslösern aus dem Text
 function extractTriggers(text: string): string[] {
   const triggers: string[] = [];
-  const foodMentions = text.match(/\b(Paprika|Nudelauflauf|Apfel|Banane|Milch|Ei|Nuss|Weizen|Soja|Fisch|Meeresfrüchte|Erdnuss|Tomate|Zitrus|Schokolade|Käse|Brot|Fleisch|Reis|Kartoffel|Zwiebel|Knoblauch|Gewürz|Kräuter|Öl|Butter|Zucker|Honig|Joghurt|Quark|Sahne|Mandel|Haselnuss|Walnuss|Cashew|Sesam|Senf|Sellerie|Petersilie|Dill|Basilikum|Oregano|Thymian|Rosmarin|Paprika|Pfeffer|Chili|Curry|Ingwer|Zimt|Vanille|Kakao|Kaffee|Tee|Alkohol|Bier|Wein|Limonade|Saft|Wasser)\b/gi);
   
-  if (foodMentions) {
-    triggers.push(...foodMentions.map(item => item.charAt(0).toUpperCase() + item.slice(1).toLowerCase()));
+  // Häufige Allergene und Lebensmittel
+  const commonFoods = [
+    'Paprika', 'Nudelauflauf', 'Apfel', 'Banane', 'Milch', 'Ei', 'Nuss', 'Nüsse',
+    'Weizen', 'Soja', 'Fisch', 'Meeresfrüchte', 'Erdnuss', 'Erdnüsse', 'Tomate', 
+    'Zitrus', 'Schokolade', 'Käse', 'Brot', 'Fleisch', 'Reis', 'Kartoffel', 
+    'Zwiebel', 'Knoblauch', 'Gewürze', 'Gluten', 'Laktose', 'Haselnuss',
+    'Mandel', 'Walnuss', 'Sellerie', 'Senf', 'Sesam', 'Lupine'
+  ];
+  
+  // Erstelle Regex-Pattern für Wortgrenzen
+  const pattern = new RegExp('\\b(' + commonFoods.join('|') + ')\\b', 'gi');
+  const matches = text.match(pattern);
+  
+  if (matches) {
+    // Normalisiere die gefundenen Treffer
+    const normalized = matches.map(item => 
+      item.charAt(0).toUpperCase() + item.slice(1).toLowerCase()
+    );
+    triggers.push(...normalized);
   }
   
-  return [...new Set(triggers)]; // Entferne Duplikate
+  // Entferne Duplikate und beschränke auf 5 Haupttrigger
+  return [...new Set(triggers)].slice(0, 5);
+}
+
+// Hilfsfunktion zum Bereinigen der Erklärung
+function cleanExplanation(text: string): string {
+  // Entferne JSON-Syntax falls vorhanden
+  let cleaned = text.replace(/[{}"\[\]]/g, '');
+  
+  // Extrahiere sinnvolle Sätze
+  const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  // Nimm die ersten 2-3 aussagekräftigsten Sätze
+  const explanation = sentences.slice(0, 3).join('. ').trim();
+  
+  return explanation.length > 10 
+    ? explanation + '.' 
+    : "Basierend auf den verfügbaren Daten wurden mögliche Auslöser identifiziert. Bitte konsultieren Sie einen Arzt für eine professionelle Diagnose.";
 }
