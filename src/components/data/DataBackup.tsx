@@ -11,7 +11,8 @@ import {
   getFoodEntries,
   getSymptomEntries,
   getUserProfiles,
-  getAppSettings
+  getAppSettings,
+  saveToLocalStorage,
 } from '@/lib/data-service';
 import {
   AlertDialog,
@@ -24,6 +25,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+// Import die Schlüssel aus data-service.ts
+const FOOD_LOG_KEY = 'ALLERGYCARE_FOOD_LOGS';
+const SYMPTOM_LOG_KEY = 'ALLERGYCARE_SYMPTOM_LOGS';
+const APP_SETTINGS_KEY = 'ALLERGYCARE_APP_SETTINGS';
+const USER_PROFILES_KEY = 'ALLERGYCARE_USER_PROFILES';
 
 export function DataBackup() {
   const [isImporting, setIsImporting] = useState(false);
@@ -80,13 +87,31 @@ export function DataBackup() {
         throw new Error('Invalid backup file format');
       }
 
-      // Store data
-      localStorage.setItem('ALLERGYCARE_FOOD_LOGS', JSON.stringify(data.foodEntries));
-      localStorage.setItem('ALLERGYCARE_SYMPTOM_LOGS', JSON.stringify(data.symptomEntries));
-      localStorage.setItem('ALLERGYCARE_USER_PROFILES', JSON.stringify(data.userProfiles));
+      // Validiere Datenstrukturen
+      const isValidFoodEntry = data.foodEntries.every((entry: any) => 
+        entry.id && entry.timestamp && entry.foodItems && Array.isArray(entry.profileIds)
+      );
+      
+      const isValidSymptomEntry = data.symptomEntries.every((entry: any) => 
+        entry.id && entry.loggedAt && entry.symptom && entry.category && entry.severity && 
+        entry.startTime && entry.duration && entry.profileId
+      );
+
+      const isValidUserProfile = data.userProfiles.every((profile: any) => 
+        profile.id && profile.name
+      );
+
+      if (!isValidFoodEntry || !isValidSymptomEntry || !isValidUserProfile) {
+        throw new Error('Ungültiges Datenformat in der Backup-Datei');
+      }
+
+      // Store data using the saveToLocalStorage function
+      saveToLocalStorage(FOOD_LOG_KEY, data.foodEntries);
+      saveToLocalStorage(SYMPTOM_LOG_KEY, data.symptomEntries);
+      saveToLocalStorage(USER_PROFILES_KEY, data.userProfiles);
       
       if (data.appSettings) {
-        localStorage.setItem('ALLERGYCARE_APP_SETTINGS', JSON.stringify(data.appSettings));
+        saveToLocalStorage(APP_SETTINGS_KEY, data.appSettings);
       }
 
       toast({
@@ -100,6 +125,7 @@ export function DataBackup() {
       }, 2000);
 
     } catch (error) {
+      console.error('Import error:', error);
       toast({
         title: 'Fehler beim Import',
         description: 'Die Backup-Datei konnte nicht gelesen werden. Überprüfen Sie das Dateiformat.',
