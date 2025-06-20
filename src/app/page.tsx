@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Utensils, HeartPulse, Activity } from 'lucide-react';
+import { Utensils, HeartPulse, Activity, AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { QuickStats } from '@/components/dashboard/QuickStats';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
@@ -25,15 +25,15 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-headline text-primary">
                   <Utensils className="h-6 w-6" />
-                  Essen dokumentieren
+                  Mahlzeiten erfassen
                 </CardTitle>
                 <CardDescription>
-                  Erfassen Sie schnell und einfach Ihre Mahlzeiten.
+                  Dokumentieren Sie schnell und einfach Ihre Mahlzeiten.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -49,7 +49,7 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-headline text-primary">
                   <HeartPulse className="h-6 w-6" />
-                  Symptom erfassen
+                  Symptome erfassen
                 </CardTitle>
                 <CardDescription>
                   Notieren Sie auftretende Symptome und deren Details.
@@ -59,6 +59,26 @@ export default function DashboardPage() {
                 <Link href="/symptom-log" passHref>
                   <Button className="w-full" variant="default">
                     <HeartPulse className="mr-2 h-4 w-4" /> Symptom hinzufügen
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* NEUE KARTE für Unverträglichkeiten */}
+            <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline text-primary">
+                  <AlertTriangle className="h-6 w-6" />
+                  Unverträglichkeiten
+                </CardTitle>
+                <CardDescription>
+                  Verwalten Sie Ihre Allergien und generieren Sie passende Rezepte.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href="/allergies" passHref>
+                  <Button className="w-full" variant="default">
+                    <AlertTriangle className="mr-2 h-4 w-4" /> Verwalten
                   </Button>
                 </Link>
               </CardContent>
@@ -82,12 +102,12 @@ export default function DashboardPage() {
               <div className="flex gap-2">
                 <Link href="/timeline" passHref>
                   <Button variant="outline" size="sm">
-                    Zeitstrahl ansehen
+                    <GitCompareArrows className="mr-2 h-4 w-4" /> Zeitstrahl
                   </Button>
                 </Link>
                 <Link href="/reports" passHref>
                   <Button variant="outline" size="sm">
-                    Berichte erstellen
+                    <BarChart3 className="mr-2 h-4 w-4" /> Berichte
                   </Button>
                 </Link>
               </div>
@@ -99,21 +119,6 @@ export default function DashboardPage() {
           <RecentActivity />
         </div>
       </div>
-
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline text-primary">Über AllergyCare</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-foreground">
-          <p>
-            AllergyCare hilft Ihnen, potenzielle Nahrungsmittelunverträglichkeiten oder Allergieauslöser zu identifizieren, 
-            indem Sie Ihre Ernährung und auftretende Symptome lückenlos dokumentieren.
-          </p>
-          <p>
-            Alle Daten werden sicher und privat nur auf Ihrem Gerät gespeichert.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
