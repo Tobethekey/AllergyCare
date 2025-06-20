@@ -1,21 +1,8 @@
-
 'use client';
 
-import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, User as UserIcon, AlertCircle } from 'lucide-react';
-import { getUserProfiles, deleteUserProfile } from '@/lib/data-service';
-import type { UserProfile } from '@/lib/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +13,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { NewUserProfileForm } from '@/components/forms/NewUserProfileForm';
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { PlusCircle, Edit, Trash2, AlertCircle, User as UserIcon } from 'lucide-react';
+import { getUserProfiles, deleteUserProfile } from '@/lib/data-service';
+import type { UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { ExtendedUserProfileForm } from '@/components/forms/ExtendedUserProfileForm';
 
 export function ProfileListPage() {
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -69,6 +65,25 @@ export function ProfileListPage() {
     setEditingProfile(null);
   };
 
+  const formatProfileInfo = (profile: UserProfile) => {
+    const infos = [];
+    
+    if (profile.dateOfBirth) {
+      const age = Math.floor((new Date().getTime() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      infos.push(`${age} Jahre`);
+    }
+    
+    if (profile.knownAllergies && profile.knownAllergies.length > 0) {
+      infos.push(`${profile.knownAllergies.length} bekannte Allergie(n)`);
+    }
+    
+    if (profile.dietaryPreferences && profile.dietaryPreferences.length > 0) {
+      infos.push(profile.dietaryPreferences.join(', '));
+    }
+    
+    return infos.length > 0 ? infos.join(' • ') : 'Keine zusätzlichen Informationen';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -95,6 +110,9 @@ export function ProfileListPage() {
                 <UserIcon className="h-5 w-5" />
                 {profile.name}
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {formatProfileInfo(profile)}
+              </p>
             </CardHeader>
             <CardContent className="flex justify-end space-x-2">
               <Button variant="outline" size="sm" onClick={() => handleEditProfile(profile)}>
@@ -133,11 +151,11 @@ export function ProfileListPage() {
           setIsFormOpen(open);
           if (!open) setEditingProfile(null);
       }}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProfile ? 'Profil bearbeiten' : 'Neues Profil anlegen'}</DialogTitle>
           </DialogHeader>
-          <NewUserProfileForm
+          <ExtendedUserProfileForm
             profileToEdit={editingProfile}
             onFormSubmit={handleFormSubmitted}
           />
