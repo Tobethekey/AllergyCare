@@ -24,26 +24,38 @@ function saveToLocalStorage<T>(key: string, value: T): void {
   window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
 }
 
-// User Profiles (New)
+// User Profiles (Extended)
 export const getUserProfiles = (): UserProfile[] => getFromLocalStorage(USER_PROFILES_KEY, []);
-export const addUserProfile = (name: string): UserProfile => {
+
+export const addUserProfile = (profileData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): UserProfile => {
   const profiles = getUserProfiles();
+  const now = new Date().toISOString();
   const newProfile: UserProfile = { 
     id: crypto.randomUUID(), 
-    name,
+    ...profileData,
+    createdAt: now,
+    updatedAt: now,
   };
   saveToLocalStorage(USER_PROFILES_KEY, [...profiles, newProfile]);
   return newProfile;
 };
-export const updateUserProfile = (id: string, name: string): UserProfile | undefined => {
+
+export const updateUserProfile = (id: string, profileData: Partial<Omit<UserProfile, 'id' | 'createdAt'>>): UserProfile | undefined => {
   const profiles = getUserProfiles();
   const profileIndex = profiles.findIndex(profile => profile.id === id);
   if (profileIndex === -1) return undefined;
 
-  profiles[profileIndex].name = name;
+  const updatedProfile: UserProfile = {
+    ...profiles[profileIndex],
+    ...profileData,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  profiles[profileIndex] = updatedProfile;
   saveToLocalStorage(USER_PROFILES_KEY, profiles);
-  return profiles[profileIndex];
+  return updatedProfile;
 };
+
 export const deleteUserProfile = (id: string): void => {
   let profiles = getUserProfiles();
   profiles = profiles.filter(profile => profile.id !== id);
@@ -61,11 +73,11 @@ export const deleteUserProfile = (id: string): void => {
   // Alternatively, set profileId to a default/null if preferred, but removing makes sense here.
   saveToLocalStorage(SYMPTOM_LOG_KEY, symptomEntries);
 };
+
 export const getUserProfileById = (id: string): UserProfile | undefined => {
   const profiles = getUserProfiles();
   return profiles.find(profile => profile.id === id);
 };
-
 
 // Food Entries
 export const getFoodEntries = (): FoodEntry[] => getFromLocalStorage(FOOD_LOG_KEY, []);
@@ -175,7 +187,7 @@ export const validateAndCleanData = (): void => {
   saveToLocalStorage(SYMPTOM_LOG_KEY, cleanedSymptomEntries);
 };
 
-// CSV Export
+// CSV Export (erweitert für neue Profildaten)
 export const exportDataToCsv = () => {
   const foodEntries = getFoodEntries();
   const symptomEntries = getSymptomEntries();
@@ -184,10 +196,29 @@ export const exportDataToCsv = () => {
 
   let csvContent = "data:text/csv;charset=utf-8,";
 
+  // Extended User Profiles Export
   csvContent += "User Profiles\r\n";
-  csvContent += "ID,Name\r\n";
+  csvContent += "ID,Name,Date of Birth,Gender,Weight,Height,Known Allergies,Chronic Conditions,Medications,Dietary Preferences,Activity Level,Smoking Status,Alcohol Consumption,Stress Level,Sleep Quality,Created At,Updated At\r\n";
   userProfiles.forEach(profile => {
-    const row = [profile.id, `"${profile.name.replace(/"/g, '""')}"`].join(",");
+    const row = [
+      profile.id,
+      `"${profile.name.replace(/"/g, '""')}"`,
+      profile.dateOfBirth || '',
+      profile.gender || '',
+      profile.weight || '',
+      profile.height || '',
+      `"${(profile.knownAllergies || []).join('; ').replace(/"/g, '""')}"`,
+      `"${(profile.chronicConditions || []).join('; ').replace(/"/g, '""')}"`,
+      `"${(profile.medications || []).join('; ').replace(/"/g, '""')}"`,
+      `"${(profile.dietaryPreferences || []).join('; ').replace(/"/g, '""')}"`,
+      profile.activityLevel || '',
+      profile.smokingStatus || '',
+      profile.alcoholConsumption || '',
+      profile.stressLevel || '',
+      profile.sleepQuality || '',
+      profile.createdAt || '',
+      profile.updatedAt || ''
+    ].join(",");
     csvContent += row + "\r\n";
   });
   csvContent += "\r\n";
