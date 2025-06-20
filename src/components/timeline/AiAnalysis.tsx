@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getFormattedLogsForAI } from '@/lib/data-formatting';
-import { getAiSuggestions, saveAiSuggestions } from '@/lib/data-service';
+import { getFormattedLogsForAI, getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/data-service';
 import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
 import { analyzeWithLlama } from '@/app/actions/llama';
 
@@ -32,7 +31,7 @@ export function AiAnalysis() {
     setAnalysisResult(null);
 
     // --- START DEBUGGING ---
-    // Wir schauen uns an, was wirklich im Local Storage steht
+    // Überprüfe die korrekten localStorage-Schlüssel
     if (typeof window !== 'undefined') {
         const rawFood = window.localStorage.getItem('ALLERGYCARE_FOOD_LOGS');
         const rawSymptoms = window.localStorage.getItem('ALLERGYCARE_SYMPTOM_LOGS');
@@ -44,7 +43,7 @@ export function AiAnalysis() {
 
     const { foodLog, symptomLog } = getFormattedLogsForAI();
     
-    // Wir loggen, was die Formatierungsfunktion zurückgibt
+    // Debugging: Was gibt die Formatierungsfunktion zurück?
     console.log("DEBUGGING: Formatierte Daten für die KI:", { foodLog, symptomLog });
 
     if (!foodLog || !symptomLog) {
@@ -69,6 +68,7 @@ export function AiAnalysis() {
     `;
 
     try {
+      clearAiSuggestions();
       const result = await analyzeWithLlama(prompt);
       setAnalysisResult(result);
       saveAiSuggestions(result);
