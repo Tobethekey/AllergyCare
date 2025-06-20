@@ -1,6 +1,6 @@
 // src/components/navigation/NavItems.tsx
 
-'use client'; // Wichtig: 'use client' hinzufügen, da wir einen Hook (usePathname) verwenden
+'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -14,12 +14,14 @@ import {
   Users,
   Settings,
   HelpCircle,
+  AlertTriangle, // Neues Icon für Unverträglichkeiten
 } from 'lucide-react';
 
 const navLinks = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/food-log', label: 'Essens-Log', icon: ClipboardList },
-  { href: '/symptom-log', label: 'Symptom-Log', icon: Stethoscope },
+  { href: '/food-log', label: 'Mahlzeiten erfassen', icon: ClipboardList }, // GEÄNDERT
+  { href: '/symptom-log', label: 'Symptome erfassen', icon: Stethoscope }, // GEÄNDERT
+  { href: '/allergies', label: 'Unverträglichkeiten', icon: AlertTriangle }, // NEU
   { href: '/timeline', label: 'Zeitstrahl & Analyse', icon: GitCompareArrows },
   { href: '/reports', label: 'Berichte', icon: BarChart3 },
   { href: '/profiles', label: 'Profile', icon: Users },
