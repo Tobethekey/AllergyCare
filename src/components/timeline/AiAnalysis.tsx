@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getFormattedLogsForAI } from '@/lib/data-formatting';
 import { getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/local-storage';
 import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
-import { getLlamaAnalysis } from '@/services/llamaApi'; // Import der neuen Funktion
+import { analyzeWithLlama } from '@/app/actions/llama'; // Import der neuen Server Action
 
 interface AnalysisResult {
   possibleTriggers: string[];
@@ -40,7 +40,6 @@ export function AiAnalysis() {
       return;
     }
 
-    // Erstellen des Prompts für die Llama-API
     const prompt = `
       You are an AI assistant specialized in identifying potential food allergy triggers.
       The user has logged their meals and symptoms. Please analyze this data to find correlations between specific foods and the symptoms that occurred shortly after.
@@ -52,21 +51,16 @@ export function AiAnalysis() {
       ${symptomLog}
 
       Based on your analysis, identify the most likely food triggers. 
-      Please provide your answer in a JSON format with two keys: 'possibleTriggers' (a list of food items as strings) and 'explanation' (a brief summary of your reasoning in German).
+      Please provide your answer in a valid JSON format with two keys: "possibleTriggers" (an array of food items as strings) and "explanation" (a brief summary of your reasoning in German).
       Example: {"possibleTriggers": ["Milch", "Erdnüsse"], "explanation": "Die Symptome traten wiederholt nach dem Verzehr von Milchprodukten und Erdnüssen auf."}
     `;
 
     try {
-      // Aufruf der neuen Llama-API Funktion
-      const resultString = await getLlamaAnalysis(prompt);
-      
-      // Parsen der JSON-Antwort von der API
-      const parsedResult: AnalysisResult = JSON.parse(resultString);
-      
-      setAnalysisResult(parsedResult);
-      saveAiSuggestions(parsedResult);
+      const result = await analyzeWithLlama(prompt);
+      setAnalysisResult(result);
+      saveAiSuggestions(result);
     } catch (e) {
-      setError('Ein Fehler ist bei der Analyse aufgetreten. Bitte überprüfen Sie Ihren API-Schlüssel und die API-Endpunkt-URL.');
+      setError('Ein Fehler ist bei der Analyse aufgetreten. Der Dienst ist möglicherweise nicht verfügbar.');
       console.error(e);
     } finally {
       setIsLoading(false);
