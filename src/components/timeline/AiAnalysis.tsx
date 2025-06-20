@@ -1,22 +1,25 @@
 'use client';
 
-import type React from 'react';
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wand2, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { getFormattedLogsForAI, saveAiSuggestions, getAiSuggestions, clearAiSuggestions } from '@/lib/data-service';
-import { analyzeTriggersAction } from '@/lib/actions';
-import type { AiSuggestion } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getFormattedLogsForAI } from '@/lib/data-formatting';
+import { getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/local-storage';
+import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
+import { getLlamaAnalysis } from '@/services/llamaApi'; // Import der neuen Funktion
+
+interface AnalysisResult {
+  possibleTriggers: string[];
+  explanation: string;
+}
 
 export function AiAnalysis() {
   const [isLoading, setIsLoading] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<AiSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
   useEffect(() => {
-    // Load previous analysis from local storage on mount
     const storedAnalysis = getAiSuggestions();
     if (storedAnalysis) {
       setAnalysisResult(storedAnalysis);
@@ -26,34 +29,44 @@ export function AiAnalysis() {
   const handleAnalyze = async () => {
     setIsLoading(true);
     setError(null);
-    setAnalysisResult(null); // Clear previous results before new analysis
-    clearAiSuggestions(); // Clear stored suggestions
+    setAnalysisResult(null);
+    clearAiSuggestions();
 
     const { foodLog, symptomLog } = getFormattedLogsForAI();
 
-    if (!foodLog && !symptomLog) {
-        setError("Bitte dokumentieren Sie zuerst einige Mahlzeiten und Symptome, um eine Analyse durchführen zu können.");
-        setIsLoading(false);
-        return;
-    }
-    if (!foodLog) {
-        setError("Keine Mahlzeiten dokumentiert. Bitte fügen Sie Mahlzeiten hinzu.");
-        setIsLoading(false);
-        return;
-    }
-    if (!symptomLog) {
-        setError("Keine Symptome dokumentiert. Bitte fügen Sie Symptome hinzu.");
-        setIsLoading(false);
-        return;
+    if (!foodLog || !symptomLog) {
+      setError("Bitte dokumentieren Sie zuerst einige Mahlzeiten und Symptome, um eine Analyse durchführen zu können.");
+      setIsLoading(false);
+      return;
     }
 
+    // Erstellen des Prompts für die Llama-API
+    const prompt = `
+      You are an AI assistant specialized in identifying potential food allergy triggers.
+      The user has logged their meals and symptoms. Please analyze this data to find correlations between specific foods and the symptoms that occurred shortly after.
+
+      Here is the food log:
+      ${foodLog}
+
+      Here is the symptom log:
+      ${symptomLog}
+
+      Based on your analysis, identify the most likely food triggers. 
+      Please provide your answer in a JSON format with two keys: 'possibleTriggers' (a list of food items as strings) and 'explanation' (a brief summary of your reasoning in German).
+      Example: {"possibleTriggers": ["Milch", "Erdnüsse"], "explanation": "Die Symptome traten wiederholt nach dem Verzehr von Milchprodukten und Erdnüssen auf."}
+    `;
 
     try {
-      const result = await analyzeTriggersAction({ foodLog, symptomLog });
-      setAnalysisResult(result);
-      saveAiSuggestions(result); // Save new analysis to local storage
+      // Aufruf der neuen Llama-API Funktion
+      const resultString = await getLlamaAnalysis(prompt);
+      
+      // Parsen der JSON-Antwort von der API
+      const parsedResult: AnalysisResult = JSON.parse(resultString);
+      
+      setAnalysisResult(parsedResult);
+      saveAiSuggestions(parsedResult);
     } catch (e) {
-      setError('Ein Fehler ist bei der Analyse aufgetreten.');
+      setError('Ein Fehler ist bei der Analyse aufgetreten. Bitte überprüfen Sie Ihren API-Schlüssel und die API-Endpunkt-URL.');
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -88,8 +101,8 @@ export function AiAnalysis() {
           <div className="mt-4 p-4 bg-destructive/10 text-destructive rounded-md flex items-start gap-2">
             <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
             <div>
-                <p className="font-semibold">Fehler</p>
-                <p>{error}</p>
+              <p className="font-semibold">Fehler</p>
+              <p>{error}</p>
             </div>
           </div>
         )}
@@ -100,20 +113,17 @@ export function AiAnalysis() {
             {analysisResult.possibleTriggers && analysisResult.possibleTriggers.length > 0 ? (
               <div>
                 <p className="font-semibold flex items-center gap-2"><CheckCircle2 className="text-green-500" /> Mögliche Auslöser:</p>
-                <ul className="list-disc list-inside ml-4 space-y-1">
+                <ul className="list-disc pl-6 mt-2">
                   {analysisResult.possibleTriggers.map((trigger, index) => (
-                    <li key={index}>{trigger}</li>
+                    <li key={index} className="font-bold">{trigger}</li>
                   ))}
                 </ul>
+                {analysisResult.explanation && (
+                    <p className="mt-4 text-sm text-muted-foreground">{analysisResult.explanation}</p>
+                )}
               </div>
             ) : (
-               <p className="flex items-center gap-2"><CheckCircle2 className="text-green-500" /> Keine spezifischen Auslöser gefunden basierend auf den aktuellen Daten.</p>
-            )}
-            {analysisResult.reasoning && (
-              <div>
-                <p className="font-semibold">Begründung:</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisResult.reasoning}</p>
-              </div>
+              <p>Es konnten keine eindeutigen Auslöser identifiziert werden.</p>
             )}
           </div>
         )}
