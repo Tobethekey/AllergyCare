@@ -54,6 +54,7 @@ export function SymptomLogForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* ... (der Rest des Formulars bleibt unverändert) ... */}
         <FormField
           control={form.control}
           name="startDate"
