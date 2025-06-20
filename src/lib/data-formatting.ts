@@ -1,23 +1,23 @@
-import { getAllFoodLogs, getAllSymptomLogs } from './local-storage';
+import { getFoodEntries, getSymptomEntries } from './data-service';
 
 // Formatiert die Protokolle in einen für die KI lesbaren String
 export function getFormattedLogsForAI(): { foodLog: string | null; symptomLog: string | null } {
-  const allFood = getAllFoodLogs();
-  const allSymptoms = getAllSymptomLogs();
+  const allFood = getFoodEntries();
+  const allSymptoms = getSymptomEntries();
 
   if (allFood.length === 0 && allSymptoms.length === 0) {
     return { foodLog: null, symptomLog: null };
   }
 
   const foodLogString = allFood.length > 0
-    ? "Food Log:\n" + allFood.map(log =>
-        `- At ${new Date(log.date).toLocaleString()}, ate: ${log.foodItems.join(', ')}`
+    ? "Food Log:\n" + allFood.map(entry =>
+        `- At ${new Date(entry.dateTime).toLocaleString()}, ate: ${entry.foodItems.join(', ')}`
       ).join('\n')
     : null;
 
   const symptomLogString = allSymptoms.length > 0
-    ? "Symptom Log:\n" + allSymptoms.map(log =>
-        `- At ${new Date(log.startDate).toLocaleString()}, felt: ${log.description} (Severity: ${log.severity})`
+    ? "Symptom Log:\n" + allSymptoms.map(entry =>
+        `- At ${new Date(entry.dateTime).toLocaleString()}, felt: ${entry.description} (Severity: ${entry.severity}/5, Category: ${entry.category})`
       ).join('\n')
     : null;
 
