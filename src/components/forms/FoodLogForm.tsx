@@ -40,7 +40,7 @@ export function FoodLogForm() {
     // WICHTIG: Seite neu laden, damit alle Komponenten die neuen Daten sehen
     setTimeout(() => {
         window.location.reload();
-    }, 500);
+    }, 500); // Kurze Verzögerung, damit der Toast sichtbar ist
   }
 
   return (
