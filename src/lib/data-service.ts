@@ -24,6 +24,16 @@ function saveToLocalStorage<T>(key: string, value: T): void {
   window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
 }
 
+// Hilfsfunktion für Schweregrad-Konvertierung
+function getSeverityLevel(severity: string): number {
+  switch (severity.toLowerCase()) {
+    case 'leicht': return 1;
+    case 'mittel': return 2;
+    case 'schwer': return 3;
+    default: return 1;
+  }
+}
+
 // User Profiles (Extended)
 export const getUserProfiles = (): UserProfile[] => getFromLocalStorage(USER_PROFILES_KEY, []);
 
@@ -157,7 +167,7 @@ export const deleteSymptomEntry = (id: string): void => {
 export const getAppSettings = (): AppSettings => getFromLocalStorage(APP_SETTINGS_KEY, { notes: '', name: '' });
 export const saveAppSettings = (settings: AppSettings): void => saveToLocalStorage(APP_SETTINGS_KEY, settings);
 
-// AI Suggestions - ERWEITERT FÜR KOMPATIBILITÄT
+// AI Suggestions - KORRIGIERT
 export const getAiSuggestions = (): AiSuggestion | null => getFromLocalStorage(AI_SUGGESTIONS_KEY, null);
 export const saveAiSuggestions = (suggestions: AiSuggestion): void => saveToLocalStorage(AI_SUGGESTIONS_KEY, suggestions);
 export const clearAiSuggestions = (): void => {
@@ -271,13 +281,14 @@ export const getFormattedLogsForAI = (): { foodLog: string | null, symptomLog: s
         }).join('\n')
     : null;
 
-  // Formatiere Symptom Log für die KI
+  // Formatiere Symptom Log für die KI - KORRIGIERT
   const symptomLogString = symptomEntries.length > 0 
     ? symptomEntries
         .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
         .map(entry => {
           const profileName = profileMap.get(entry.profileId) || 'Unbekanntes Profil';
-          let logEntry = `- Am ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity}/5, Dauer: ${entry.duration} Min, Profil: ${profileName}`;
+          const severityLevel = getSeverityLevel(entry.severity); // Konvertiere zu Zahl für KI
+          let logEntry = `- Am ${new Date(entry.startTime).toLocaleString('de-DE')}, Symptom: ${entry.symptom}, Kategorie: ${entry.category}, Schweregrad: ${entry.severity} (${severityLevel}/3), Dauer: ${entry.duration}, Profil: ${profileName}`;
           
           if (entry.linkedFoodEntryId) {
             const linkedFood = getFoodEntryById(entry.linkedFoodEntryId);
