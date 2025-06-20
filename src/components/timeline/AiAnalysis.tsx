@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getFormattedLogsForAI } from '@/lib/data-formatting';
 import { getAiSuggestions, saveAiSuggestions, clearAiSuggestions } from '@/lib/local-storage';
 import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
-import { analyzeWithLlama } from '@/app/actions/llama'; // Import der neuen Server Action
+import { analyzeWithLlama } from '@/app/actions/llama';
 
 interface AnalysisResult {
   possibleTriggers: string[];
@@ -30,9 +30,22 @@ export function AiAnalysis() {
     setIsLoading(true);
     setError(null);
     setAnalysisResult(null);
-    clearAiSuggestions();
+
+    // --- START DEBUGGING ---
+    // Wir schauen uns an, was wirklich im Local Storage steht
+    if (typeof window !== 'undefined') {
+        const rawFood = window.localStorage.getItem('foodLogs');
+        const rawSymptoms = window.localStorage.getItem('symptomLogs');
+        console.log("DEBUGGING: Rohdaten aus dem Local Storage...");
+        console.log("Rohdaten für 'foodLogs':", rawFood);
+        console.log("Rohdaten für 'symptomLogs':", rawSymptoms);
+    }
+    // --- END DEBUGGING ---
 
     const { foodLog, symptomLog } = getFormattedLogsForAI();
+    
+    // Wir loggen, was die Formatierungsfunktion zurückgibt
+    console.log("DEBUGGING: Formatierte Daten für die KI:", { foodLog, symptomLog });
 
     if (!foodLog || !symptomLog) {
       setError("Bitte dokumentieren Sie zuerst einige Mahlzeiten und Symptome, um eine Analyse durchführen zu können.");
@@ -56,6 +69,7 @@ export function AiAnalysis() {
     `;
 
     try {
+      clearAiSuggestions();
       const result = await analyzeWithLlama(prompt);
       setAnalysisResult(result);
       saveAiSuggestions(result);
