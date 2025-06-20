@@ -12,7 +12,8 @@ import {
   getSymptomEntries,
   getUserProfiles,
   getAppSettings,
-  saveToLocalStorage,
+  // *** KORREKTUR: Wir importieren die spezifischen Speicherfunktionen ***
+  saveAppSettings,
 } from '@/lib/data-service';
 import {
   AlertDialog,
@@ -26,11 +27,21 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-// Import die Schlüssel aus data-service.ts
+// Die Schlüssel sind hier nicht mehr nötig, da wir die Logik in data-service kapseln
 const FOOD_LOG_KEY = 'ALLERGYCARE_FOOD_LOGS';
 const SYMPTOM_LOG_KEY = 'ALLERGYCARE_SYMPTOM_LOGS';
 const APP_SETTINGS_KEY = 'ALLERGYCARE_APP_SETTINGS';
 const USER_PROFILES_KEY = 'ALLERGYCARE_USER_PROFILES';
+
+// Helper-Funktion, die wir direkt hier verwenden, da die Originale nicht exportiert ist
+function saveRawToLocalStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(key, JSON.stringify(value));
+  window.localStorage.setItem('ALLERGYCARE_LAST_ACTIVITY', new Date().toISOString());
+}
+
 
 export function DataBackup() {
   const [isImporting, setIsImporting] = useState(false);
@@ -74,7 +85,6 @@ export function DataBackup() {
   };
 
   const handleImportClick = () => {
-    // Programmatically click the hidden file input
     fileInputRef.current?.click();
   };
 
@@ -88,7 +98,6 @@ export function DataBackup() {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      // Your detailed validation logic (unchanged)
       if (!data.foodEntries || !data.symptomEntries || !data.userProfiles) {
         throw new Error('Invalid backup file format');
       }
@@ -106,12 +115,14 @@ export function DataBackup() {
         throw new Error('Ungültiges Datenformat in der Backup-Datei');
       }
 
-      // Store data using the saveToLocalStorage function
-      saveToLocalStorage(FOOD_LOG_KEY, data.foodEntries);
-      saveToLocalStorage(SYMPTOM_LOG_KEY, data.symptomEntries);
-      saveToLocalStorage(USER_PROFILES_KEY, data.userProfiles);
+      // *** KORREKTUR: Wir verwenden die lokale Helper-Funktion ***
+      saveRawToLocalStorage(FOOD_LOG_KEY, data.foodEntries);
+      saveRawToLocalStorage(SYMPTOM_LOG_KEY, data.symptomEntries);
+      saveRawToLocalStorage(USER_PROFILES_KEY, data.userProfiles);
+      
       if (data.appSettings) {
-        saveToLocalStorage(APP_SETTINGS_KEY, data.appSettings);
+        // Für die App-Settings können wir die exportierte Funktion nutzen
+        saveAppSettings(data.appSettings);
       }
 
       toast({
@@ -119,7 +130,6 @@ export function DataBackup() {
         description: 'Ihre Daten wurden erfolgreich importiert. Die Seite wird neu geladen.',
       });
 
-      // Reload page to reflect changes
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -133,7 +143,6 @@ export function DataBackup() {
       });
     } finally {
       setIsImporting(false);
-      // Reset file input
       if(event.target) {
         event.target.value = '';
       }
@@ -184,14 +193,12 @@ export function DataBackup() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                  {/* This action button now triggers the file input click */}
                   <AlertDialogAction onClick={handleImportClick} disabled={isImporting}>
                     Fortfahren & Datei auswählen
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            {/* Hidden file input */}
             <Input
               ref={fileInputRef}
               id="backup-file"
