@@ -1,4 +1,3 @@
-
 'use client';
 
 import PageHeader from '@/components/PageHeader';
@@ -17,8 +16,8 @@ export default function FoodLogPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Nahrungsmittel dokumentieren"
-        description="Erfassen Sie hier Ihre Mahlzeiten und Getränke."
+        title="Mahlzeiten erfassen"
+        description="Dokumentieren Sie hier Ihre Mahlzeiten und Getränke detailliert."
       />
       <Card className="shadow-lg">
         <CardHeader>
