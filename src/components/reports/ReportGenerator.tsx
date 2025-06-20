@@ -5,7 +5,7 @@ import type React from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon, Users, User as UserIcon } from 'lucide-react';
+import { Printer, FileDown, Filter, AlertCircle, Apple, ClipboardPlus, LinkIcon, Users, User as UserIcon, Heart, Activity, Calendar } from 'lucide-react';
 import { getFoodEntries, getSymptomEntries, exportDataToCsv, getFoodEntryById, getUserProfiles } from '@/lib/data-service';
 import type { FoodEntry, SymptomEntry, UserProfile } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ export function ReportGenerator() {
   const [allFoodEntries, setAllFoodEntries] = useState<FoodEntry[]>([]);
   const [allSymptomEntries, setAllSymptomEntries] = useState<SymptomEntry[]>([]);
   const [allUserProfiles, setAllUserProfiles] = useState<UserProfile[]>([]);
-  const [userProfilesMap, setUserProfilesMap] = useState<Map<string, string>>(new Map());
+  const [userProfilesMap, setUserProfilesMap] = useState<Map<string, UserProfile>>(new Map());
   const [loadingInitialData, setLoadingInitialData] = useState(true);
   
   const [filteredItems, setFilteredItems] = useState<ReportItem[]>([]);
@@ -40,7 +40,7 @@ export function ReportGenerator() {
     setAllFoodEntries(food);
     setAllSymptomEntries(symptoms);
     setAllUserProfiles(profiles);
-    setUserProfilesMap(new Map(profiles.map(p => [p.id, p.name])));
+    setUserProfilesMap(new Map(profiles.map(p => [p.id, p])));
     setLoadingInitialData(false);
   }, []);
 
@@ -75,13 +75,25 @@ export function ReportGenerator() {
       const lowerSearchTerm = searchTerm.toLowerCase();
       items = items.filter(item => {
         if (item.type === 'food') {
-          const profileNames = item.profileIds.map(id => userProfilesMap.get(id)?.toLowerCase() || '').join(' ');
-          return item.foodItems.toLowerCase().includes(lowerSearchTerm) || profileNames.includes(lowerSearchTerm);
+          const profileNames = item.profileIds.map(id => userProfilesMap.get(id)?.name?.toLowerCase() || '').join(' ');
+          const profileAllergies = item.profileIds
+            .map(id => userProfilesMap.get(id)?.knownAllergies?.join(' ').toLowerCase() || '')
+            .join(' ');
+          return item.foodItems.toLowerCase().includes(lowerSearchTerm) || 
+                 profileNames.includes(lowerSearchTerm) ||
+                 profileAllergies.includes(lowerSearchTerm);
         } else { // Symptom
-          const profileName = userProfilesMap.get(item.profileId)?.toLowerCase() || '';
+          const profile = userProfilesMap.get(item.profileId);
+          const profileName = profile?.name?.toLowerCase() || '';
+          const profileAllergies = profile?.knownAllergies?.join(' ').toLowerCase() || '';
+          const profileMedications = profile?.medications?.join(' ').toLowerCase() || '';
+          
           let match = item.symptom.toLowerCase().includes(lowerSearchTerm) || 
                  item.category.toLowerCase().includes(lowerSearchTerm) ||
-                 profileName.includes(lowerSearchTerm);
+                 profileName.includes(lowerSearchTerm) ||
+                 profileAllergies.includes(lowerSearchTerm) ||
+                 profileMedications.includes(lowerSearchTerm);
+          
           if (item.linkedFoodEntryId) {
             const linkedFood = getFoodEntryById(item.linkedFoodEntryId);
             if (linkedFood && linkedFood.foodItems.toLowerCase().includes(lowerSearchTerm)) {
@@ -198,6 +210,33 @@ export function ReportGenerator() {
     pdf.save('AllergyCare-Bericht.pdf');
   };
 
+  // Hilfsfunktion zur Formatierung der Profil-Zusatzinformationen
+  const formatProfileDetails = (profile: UserProfile) => {
+    const details = [];
+    
+    if (profile.dateOfBirth) {
+      const age = Math.floor((new Date().getTime() - new Date(profile.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      details.push(`${age} Jahre`);
+    }
+    
+    if (profile.gender) {
+      details.push(profile.gender);
+    }
+    
+    if (profile.knownAllergies && profile.knownAllergies.length > 0) {
+      details.push(`Allergien: ${profile.knownAllergies.join(', ')}`);
+    }
+    
+    if (profile.medications && profile.medications.length > 0) {
+      details.push(`Medikamente: ${profile.medications.join(', ')}`);
+    }
+    
+    if (profile.dietaryPreferences && profile.dietaryPreferences.length > 0) {
+      details.push(`Ernährung: ${profile.dietaryPreferences.join(', ')}`);
+    }
+    
+    return details;
+  };
 
   return (
     <div className="space-y-6">
@@ -206,7 +245,7 @@ export function ReportGenerator() {
           <CardTitle className="font-headline text-primary flex items-center gap-2">
             <Filter /> Filteroptionen
           </CardTitle>
-          <CardDescription>Passen Sie den Zeitraum und Suchbegriffe für Ihren Bericht an.</CardDescription>
+          <CardDescription>Passen Sie den Zeitraum und Suchbegriffe für Ihren Bericht an. Jetzt auch durchsuchbar nach Profildaten wie Allergien und Medikamenten.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {loadingInitialData ? (
@@ -215,7 +254,7 @@ export function ReportGenerator() {
                 <div><Label htmlFor="startDate">Startdatum</Label><Skeleton className="h-10 w-full" /></div>
                 <div><Label htmlFor="endDate">Enddatum</Label><Skeleton className="h-10 w-full" /></div>
               </div>
-              <div><Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/Profil)</Label><Skeleton className="h-10 w-full" /></div>
+              <div><Label htmlFor="searchTerm">Suchbegriff</Label><Skeleton className="h-10 w-full" /></div>
             </>
           ) : (
             <>
@@ -230,8 +269,8 @@ export function ReportGenerator() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/Profil/verkn. Mahlzeit)</Label>
-                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag, Max, verknüpfte Pizza" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <Label htmlFor="searchTerm">Suchbegriff (Nahrungsmittel/Symptom/Profil/Allergien/Medikamente)</Label>
+                <Input id="searchTerm" type="text" placeholder="z.B. Milch, Hautausschlag, Max, Nüsse, Antihistaminikum" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
             </>
           )}
@@ -276,9 +315,14 @@ export function ReportGenerator() {
               if (item.type === 'symptom' && item.linkedFoodEntryId) {
                 linkedFoodDetails = getFoodEntryById(item.linkedFoodEntryId);
               }
+              
               const itemProfileNames = item.type === 'food' 
-                ? item.profileIds.map(id => userProfilesMap.get(id) || 'Unbekannt').join(', ')
-                : userProfilesMap.get(item.profileId) || 'Unbekannt';
+                ? item.profileIds.map(id => userProfilesMap.get(id)?.name || 'Unbekannt').join(', ')
+                : userProfilesMap.get(item.profileId)?.name || 'Unbekannt';
+
+              const relevantProfiles = item.type === 'food' 
+                ? item.profileIds.map(id => userProfilesMap.get(id)).filter(Boolean) as UserProfile[]
+                : [userProfilesMap.get(item.profileId)].filter(Boolean) as UserProfile[];
 
               return (
                 <div key={item.id} className="p-3 border rounded-md break-inside-avoid-page report-item">
@@ -286,10 +330,36 @@ export function ReportGenerator() {
                     {item.type === 'food' ? <Apple size={18} /> : <ClipboardPlus size={18} />}
                     {item.type === 'food' ? 'Mahlzeit' : 'Symptom'} - {format(parseISO(item.type === 'food' ? item.timestamp : item.startTime), "dd.MM.yyyy HH:mm", { locale: de })} Uhr
                   </h4>
-                   <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                     {item.type === 'food' ? <Users className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
-                     {itemProfileNames}
-                   </p>
+                  
+                  {/* Profil-Information mit erweiterten Details */}
+                  <div className="text-xs text-muted-foreground mb-2">
+                    <div className="flex items-center gap-1 mb-1">
+                      {item.type === 'food' ? <Users className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />}
+                      <span className="font-semibold">Profile: {itemProfileNames}</span>
+                    </div>
+                    
+                    {/* Erweiterte Profil-Details anzeigen */}
+                    {relevantProfiles.map(profile => {
+                      const details = formatProfileDetails(profile);
+                      if (details.length > 0) {
+                        return (
+                          <div key={profile.id} className="ml-4 text-xs bg-gray-50 p-2 rounded mt-1">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Heart className="h-3 w-3" />
+                              <span className="font-medium">{profile.name}:</span>
+                            </div>
+                            <div className="ml-4 space-y-0.5">
+                              {details.map((detail, idx) => (
+                                <div key={idx} className="text-xs">{detail}</div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                  
                   {item.type === 'food' ? (
                     <div className="text-sm mt-1">
                       <p><strong>Nahrungsmittel:</strong> {item.foodItems}</p>
@@ -387,7 +457,6 @@ export function ReportGenerator() {
              font-family: Arial, sans-serif !important;
              color: black !important;
            }
-
 
           #report-preview-area img {
             max-width: 100px !important; 
