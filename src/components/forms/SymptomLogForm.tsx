@@ -1,332 +1,141 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HeartPulse, LinkIcon, User as UserIcon } from 'lucide-react';
-import { addSymptomEntry, getFoodEntries, updateSymptomEntry, getUserProfiles } from '@/lib/data-service';
-import type { FoodEntry, SymptomEntry as SymptomEntryType, UserProfile } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/components/ui/use-toast";
+import { addSymptomLog } from "@/lib/local-storage";
 
-const getLocalDateTimeString = (isoDateString?: string) => {
-  const date = isoDateString ? new Date(isoDateString) : new Date();
-  if (isNaN(date.getTime())) {
-    const fallbackDate = new Date();
-    const offset = fallbackDate.getTimezoneOffset() * 60000;
-    const localDate = new Date(fallbackDate.getTime() - offset);
-    return localDate.toISOString().substring(0, 16);
-  }
-  const offset = date.getTimezoneOffset() * 60000;
-  const localDate = new Date(date.getTime() - offset);
-  return localDate.toISOString().substring(0, 16);
-};
-
-const UNLINKED_FOOD_VALUE = "___UNLINKED___";
-
-// ====================================================================================
-// ===== ULTIMATIVE KORREKTUR #1: DAS SCHEMA WIRD WASSERDICHT GEMACHT =====
-// Wir ersetzen z.enum durch z.string().min(1), um leere Werte beim Absenden
-// abzufangen, aber leere Strings im Formularstatus zu erlauben.
-// Das Select-Feld stellt sicher, dass nur gültige Werte ausgewählt werden können.
-// ====================================================================================
-const symptomLogFormSchema = z.object({
-  symptom: z.string().min(2, {
-    message: 'Bitte beschreiben Sie das Symptom.',
-  }),
-  category: z.string({ required_error: 'Bitte wählen Sie eine Kategorie aus.'}).min(1, {
-    message: 'Bitte wählen Sie eine Kategorie aus.',
-  }),
-  severity: z.string({ required_error: 'Bitte wählen Sie den Schweregrad aus.'}).min(1, {
-    message: 'Bitte wählen Sie den Schweregrad aus.',
-  }),
-  startTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: 'Bitte geben Sie ein gültiges Startdatum und eine gültige Startzeit an.',
-  }),
-  duration: z.string().min(1, {
-    message: 'Bitte geben Sie die Dauer an (z.B. "2 Stunden", "30 Minuten", "anhaltend").',
-  }),
-  linkedFoodEntryId: z.string().optional(),
-  profileId: z.string({ required_error: 'Bitte wählen Sie ein Profil aus.'}).min(1, {message: 'Bitte wählen Sie ein Profil aus.'}),
+const formSchema = z.object({
+  startDate: z.string().min(1, "Beginn ist erforderlich"),
+  description: z.string().min(1, "Beschreibung ist erforderlich"),
+  category: z.string().min(1, "Kategorie ist erforderlich"),
+  severity: z.number().min(1).max(10),
+  duration: z.number().min(0, "Dauer darf nicht negativ sein"),
 });
 
-type SymptomLogFormValues = z.infer<typeof symptomLogFormSchema>;
-
-interface SymptomLogFormProps {
-  entryToEdit?: SymptomEntryType;
-  onFormSubmit: () => void;
-}
-
-export function SymptomLogForm({ entryToEdit, onFormSubmit }: SymptomLogFormProps) {
+export function SymptomLogForm() {
   const { toast } = useToast();
-  const [recentFoodEntries, setRecentFoodEntries] = useState<FoodEntry[]>([]);
-  const [availableProfiles, setAvailableProfiles] = useState<UserProfile[]>([]);
-  const symptomCategories = ['Haut', 'Atemwege', 'Magen-Darm', 'Herz-Kreislauf', 'Neurologisch', 'Andere'] as const;
-  const symptomSeverities = ['Leicht', 'Mittel', 'Schwer'] as const;
-
-  useEffect(() => {
-    setAvailableProfiles(getUserProfiles());
-    const allFood = getFoodEntries();
-    const sortedFood = allFood.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setRecentFoodEntries(sortedFood.slice(0, 15));
-  }, []);
-
-  // ====================================================================================
-  // ===== ULTIMATIVE KORREKTUR #2: SAUBERE STANDARDWERTE =====
-  // Wir verwenden '' für leere Zustände statt undefined, passend zum neuen Schema.
-  // ====================================================================================
-  const getInitialDefaultValues = (): SymptomLogFormValues => ({
-    symptom: entryToEdit?.symptom || '',
-    category: entryToEdit?.category || '',
-    severity: entryToEdit?.severity || '',
-    startTime: getLocalDateTimeString(entryToEdit?.startTime),
-    duration: entryToEdit?.duration || '',
-    linkedFoodEntryId: entryToEdit?.linkedFoodEntryId || UNLINKED_FOOD_VALUE,
-    profileId: entryToEdit?.profileId || '',
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      startDate: new Date().toISOString().substring(0, 16),
+      description: "",
+      category: "Haut",
+      severity: 5,
+      duration: 60,
+    },
   });
 
-
-  const form = useForm<SymptomLogFormValues>({
-    resolver: zodResolver(symptomLogFormSchema),
-    defaultValues: getInitialDefaultValues(),
-    mode: 'onChange',
-  });
-
-  useEffect(() => {
-    form.reset(getInitialDefaultValues());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entryToEdit]);
-
-  function onSubmit(data: SymptomLogFormValues) {
-    const symptomDataPayload = {
-      ...data,
-      startTime: new Date(data.startTime).toISOString(),
-      linkedFoodEntryId: data.linkedFoodEntryId === UNLINKED_FOOD_VALUE ? undefined : data.linkedFoodEntryId,
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    const newLog = {
+      ...values,
+      startDate: new Date(values.startDate).toISOString(),
     };
 
-    if (entryToEdit) {
-      updateSymptomEntry(entryToEdit.id, symptomDataPayload);
-      toast({
-        title: 'Symptom aktualisiert',
-        description: 'Ihr Symptom wurde erfolgreich geändert.',
-      });
-    } else {
-      addSymptomEntry(symptomDataPayload);
-      toast({
-        title: 'Symptom gespeichert',
-        description: 'Ihr Symptom wurde erfolgreich dokumentiert.',
-      });
-    }
-    onFormSubmit();
-    
-    // ====================================================================================
-    // ===== ULTIMATIVE KORREKTUR #3: BOMBENFESTER RESET =====
-    // Wir rufen die Funktion für Standardwerte erneut auf, aber ohne "entryToEdit",
-    // um einen garantiert sauberen, typ-sicheren "Neues Symptom"-Zustand zu erhalten.
-    // ====================================================================================
-    form.reset({
-      symptom: '',
-      category: '',
-      severity: '',
-      startTime: getLocalDateTimeString(),
-      duration: '',
-      linkedFoodEntryId: UNLINKED_FOOD_VALUE,
-      profileId: data.profileId, // Profil für die nächste Eingabe beibehalten
+    addSymptomLog(newLog);
+
+    toast({
+      title: "Gespeichert",
+      description: "Symptom wurde erfolgreich hinzugefügt.",
     });
+
+    // WICHTIG: Seite neu laden für Datenkonsistenz
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="profileId"
+          name="startDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center gap-1">
-                <UserIcon className="h-4 w-4 text-primary" />
-                Für welches Profil gilt dieses Symptom?
-              </FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Profil auswählen..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {availableProfiles.length === 0 && (
-                    <SelectItem value="no-profile" disabled>
-                      Keine Profile vorhanden.
-                    </SelectItem>
-                  )}
-                  {availableProfiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableProfiles.length === 0 && (
-                  <FormDescription>
-                    Bitte erstellen Sie zuerst Profile unter{' '}
-                    <Link href="/profiles" className="underline hover:text-primary">Profile verwalten</Link>.
-                  </FormDescription>
-                )}
+              <FormLabel>Beginn</FormLabel>
+              <FormControl>
+                <Input type="datetime-local" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
-          name="symptom"
+          name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Symptombeschreibung</FormLabel>
+              <FormLabel>Beschreibung</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="z.B. Hautausschlag am Arm, Bauchschmerzen, Husten"
-                  className="resize-none"
-                  {...field}
+                <Input placeholder="z.B. Juckreiz am Arm" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Kategorie</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wähle eine Kategorie" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Haut">Haut</SelectItem>
+                  <SelectItem value="Magen-Darm">Magen-Darm</SelectItem>
+                  <SelectItem value="Atemwege">Atemwege</SelectItem>
+                  <SelectItem value="Allgemein">Allgemein</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="severity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Schweregrad: {field.value}</FormLabel>
+              <FormControl>
+                <Slider
+                  min={1}
+                  max={10}
+                  step={1}
+                  defaultValue={[field.value]}
+                  onValueChange={(value) => field.onChange(value[0])}
                 />
               </FormControl>
-              <FormDescription>
-                Beschreiben Sie das aufgetretene Symptom.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Kategorie</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kategorie auswählen" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {symptomCategories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="severity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Schweregrad</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Schweregrad auswählen" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {symptomSeverities.map((sev) => (
-                      <SelectItem key={sev} value={sev}>{sev}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <FormField
-            control={form.control}
-            name="startTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Beginn (Datum und Uhrzeit)</FormLabel>
-                <FormControl>
-                  <Input type="datetime-local" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="duration"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Dauer</FormLabel>
-                <FormControl>
-                  <Input placeholder="z.B. 2 Stunden, 30 Min., anhaltend" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
         <FormField
           control={form.control}
-          name="linkedFoodEntryId"
+          name="duration"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="flex items-center gap-1">
-                <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                Mahlzeit verknüpfen (optional)
-              </FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || UNLINKED_FOOD_VALUE}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Kürzliche Mahlzeit auswählen..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={UNLINKED_FOOD_VALUE}>Keine Mahlzeit verknüpfen</SelectItem>
-                  {recentFoodEntries.map((food) => (
-                    <SelectItem key={food.id} value={food.id}>
-                      {new Date(food.timestamp).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} Uhr - {food.foodItems.substring(0, 40)}{food.foodItems.length > 40 ? '...' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Wählen Sie eine kürzlich protokollierte Mahlzeit, die mit diesem Symptom in Verbindung stehen könnte.
-              </FormDescription>
+              <FormLabel>Dauer (in Minuten)</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))}/>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
-        <div className="flex justify-end">
-          <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground" disabled={availableProfiles.length === 0 && !entryToEdit}>
-            <HeartPulse className="mr-2 h-4 w-4" /> {entryToEdit ? 'Änderungen speichern' : 'Symptom speichern'}
-          </Button>
-        </div>
+        <Button type="submit" className="w-full">Symptom speichern</Button>
       </form>
     </Form>
   );
